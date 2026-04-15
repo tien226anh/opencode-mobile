@@ -34,9 +34,9 @@ Port OpenCode (the open-source AI coding agent) to mobile using Compose Multipla
 ## TODOs
 
 ### Phase 1: Project Foundation
-- [ ] T1: Scaffold KMP project structure with CMP (Android + iOS targets)
+- [x] T1: Scaffold KMP project structure with CMP (Android + iOS targets)
   - Acceptance Criteria: Project builds with `./gradlew assembleDebug` (Android) and opens in Xcode (iOS). `composeApp` module configured with all dependencies. Version catalog populated.
-- [ ] T2: Configure Gradle build system (version catalog, plugins, dependencies)
+- [x] T2: Configure Gradle build system (version catalog, plugins, dependencies)
   - Acceptance Criteria: `libs.versions.toml` has all versions. Root and module `build.gradle.kts` files configured. `settings.gradle.kts` has correct repositories. `./gradlew tasks` succeeds.
 
 ### Phase 2: Core Data Layer

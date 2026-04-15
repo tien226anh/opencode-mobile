@@ -35,3 +35,53 @@
 - Kotlinx Serialization for JSON
 - Coil 3 for image loading
 - Material3 for UI components
+
+## OpenCode Server API (from source code research)
+
+### Authentication
+- HTTP Basic Auth: username "opencode", password from OPENCODE_SERVER_PASSWORD env var
+- Optional auth_token query param converted to Authorization header
+- Mobile clients pass Basic Auth in headers when configured
+
+### Core Endpoints
+- GET/POST /session - List/create sessions
+- GET /session/{id} - Get session details
+- POST /session/{id}/message - Send chat message (body: SessionChatParams)
+- GET /session/{id}/message - List messages for session
+- POST /session/{id}/init - Initialize session
+- POST /session/{id}/abort - Abort session
+- POST /session/{id}/revert - Undo (body: {messageID, partID?})
+- POST /session/{id}/unrevert - Redo
+- POST /session/{id}/share, DELETE /session/{id}/share - Share/unshare
+- GET /project, GET /project/current - Project info
+- GET /config, PATCH /config - Config management
+- GET /global/health - Health check
+- GET /global/event - SSE stream for global events
+
+### Streaming
+- SSE at /global/event is the primary streaming mechanism
+- Mobile clients connect with optional Basic Auth headers
+- Events include session updates, message updates, etc.
+
+### SessionChatParams (request body)
+```json
+{
+  "modelID": "string",
+  "parts": [{"type": "text", "text": "message"}],
+  "providerID": "string",
+  "messageID": "string (optional)",
+  "mode": "string (optional)",
+  "system": "string (optional)",
+  "tools": {"toolName": true/false (optional)}
+}
+```
+
+### Session Model
+- Fields: id, slug, projectID, workspaceID?, directory, parentID?, summary, share, title, version, time, permission?, revert?
+
+### Message Model
+- Fields: id, role ("user"|"assistant"), parts[]
+- Part types: TextPart, ReasoningPart, ToolInvocationPart, SourceUrlPart, FilePart, StepStartPart
+
+### Project Model
+- Fields: id, worktree, vcs, name, icon, commands, time, sandboxes
