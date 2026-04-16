@@ -9,9 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +30,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -67,13 +74,12 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = "Server Connection",
-                style = MaterialTheme.typography.titleMedium,
-            )
+            // --- Server Connection ---
+            Text(text = "Server Connection", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = state.serverUrl,
@@ -86,11 +92,8 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            Text(
-                text = "Authentication (optional)",
-                style = MaterialTheme.typography.titleMedium,
-            )
-
+            // --- Authentication ---
+            Text(text = "Authentication (optional)", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = "Leave empty if the server has no authentication configured.",
                 style = MaterialTheme.typography.bodySmall,
@@ -127,9 +130,7 @@ fun SettingsScreen(
                 ) {
                     if (state.isTesting) {
                         CircularProgressIndicator(
-                            modifier = Modifier
-                                .width(16.dp)
-                                .height(16.dp),
+                            modifier = Modifier.width(16.dp).height(16.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
@@ -151,6 +152,118 @@ fun SettingsScreen(
                 }
             }
 
+            // --- Provider/Model/Mode Selection (only visible after connection) ---
+            if (state.isConnectionSuccessful == true && state.providers.isNotEmpty()) {
+                HorizontalDivider()
+                Text(text = "Provider & Model", style = MaterialTheme.typography.titleMedium)
+
+                // Provider dropdown
+                var providerExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = providerExpanded,
+                    onExpandedChange = { providerExpanded = !providerExpanded },
+                ) {
+                    val providerName = state.providers.find { it.id == state.selectedProviderId }?.name?.ifEmpty { state.selectedProviderId } ?: state.selectedProviderId
+                    OutlinedTextField(
+                        value = providerName.ifEmpty { "Select provider" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Provider") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = providerExpanded,
+                        onDismissRequest = { providerExpanded = false },
+                    ) {
+                        state.providers.forEach { provider ->
+                            DropdownMenuItem(
+                                text = { Text(provider.name.ifEmpty { provider.id }) },
+                                onClick = {
+                                    component.viewModel.updateProvider(provider.id)
+                                    providerExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+
+                // Model dropdown (cascading from provider)
+                if (state.selectedProviderModels.isNotEmpty()) {
+                    var modelExpanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = modelExpanded,
+                        onExpandedChange = { modelExpanded = !modelExpanded },
+                    ) {
+                        val modelName = state.selectedProviderModels.find { it.id == state.selectedModelId }?.name?.ifEmpty { state.selectedModelId } ?: state.selectedModelId
+                        OutlinedTextField(
+                            value = modelName.ifEmpty { "Select model" },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Model") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = modelExpanded,
+                            onDismissRequest = { modelExpanded = false },
+                        ) {
+                            state.selectedProviderModels.forEach { model ->
+                                DropdownMenuItem(
+                                    text = { Text(model.name.ifEmpty { model.id }) },
+                                    onClick = {
+                                        component.viewModel.updateModel(model.id)
+                                        modelExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (state.isConnectionSuccessful == true && state.modes.isNotEmpty()) {
+                // Mode dropdown
+                var modeExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = modeExpanded,
+                    onExpandedChange = { modeExpanded = !modeExpanded },
+                ) {
+                    OutlinedTextField(
+                        value = state.selectedModeName.ifEmpty { "Select mode" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Mode") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modeExpanded,
+                        onDismissRequest = { modeExpanded = false },
+                    ) {
+                        state.modes.forEach { mode ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(mode.name)
+                                        mode.description?.let {
+                                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    component.viewModel.updateMode(mode.name)
+                                    modeExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // --- Save ---
             Button(
                 onClick = { component.saveAndPersist() },
                 enabled = !state.isTesting,
@@ -161,11 +274,8 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            Text(
-                text = "About",
-                style = MaterialTheme.typography.titleMedium,
-            )
-
+            // --- About ---
+            Text(text = "About", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = "OpenCode Mobile v1.0.0\nConnect to any OpenCode server instance to manage your AI coding sessions on the go.",
                 style = MaterialTheme.typography.bodyMedium,

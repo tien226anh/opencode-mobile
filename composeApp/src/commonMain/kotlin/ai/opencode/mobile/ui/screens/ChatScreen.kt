@@ -1,5 +1,10 @@
 package ai.opencode.mobile.ui.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +16,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -26,6 +33,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,11 +46,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import ai.opencode.mobile.model.Message
+import androidx.compose.ui.unit.sp
+import ai.opencode.mobile.model.MessageResponseItem
+import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.navigation.ChatComponent
+import ai.opencode.mobile.ui.components.MarkdownText
+import ai.opencode.mobile.ui.components.ToolResultCard
 import ai.opencode.mobile.ui.theme.AssistantMessageBackground
 import ai.opencode.mobile.ui.theme.AssistantMessageBackgroundLight
 import ai.opencode.mobile.ui.theme.UserMessageBackground
@@ -81,11 +92,22 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = component.sessionTitle.ifEmpty { "Chat" },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Column {
+                        Text(
+                            text = component.sessionTitle.ifEmpty { "Chat" },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (state.currentModelId.isNotBlank()) {
+                            Text(
+                                text = state.currentModelId,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -104,6 +126,7 @@ fun ChatScreen(
                         inputText = ""
                     }
                 },
+                onAbort = { component.viewModel.abortSession() },
                 isSending = state.isSending,
             )
         },
@@ -113,77 +136,34 @@ fun ChatScreen(
         when {
             state.isLoading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
+                ) { CircularProgressIndicator() }
             }
             state.messages.isEmpty() -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "Start a conversation",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "Type a message below to begin",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Start a conversation", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Type a message below to begin", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             else -> {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp,
-                        vertical = 8.dp,
-                    ),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(
-                        items = state.messages,
-                        key = { it.id },
-                    ) { message ->
+                    items(items = state.messages, key = { it.info.id }) { message ->
                         MessageBubble(message = message)
                     }
                     if (state.isSending) {
                         item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.Start,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .width(24.dp)
-                                        .height(24.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Thinking...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            ThinkingIndicator()
                         }
                     }
                 }
@@ -194,10 +174,10 @@ fun ChatScreen(
 
 @Composable
 fun MessageBubble(
-    message: Message,
+    message: MessageResponseItem,
     modifier: Modifier = Modifier,
 ) {
-    val isUser = message.role == "user"
+    val isUser = message.info.role == "user"
     val isDarkTheme = !isLightTheme()
 
     val bubbleColor = when {
@@ -216,100 +196,142 @@ fun MessageBubble(
                 .background(bubbleColor)
                 .padding(12.dp),
         ) {
-            // Text parts
-            val textContent = message.parts
-                .filter { it.type == "text" }
-                .mapNotNull { it.text }
-                .joinToString("\n")
+            // Main content parts
+            message.parts.filter { it.type == "text" }.forEach { part ->
+                if (isUser) {
+                    Text(
+                        text = part.text ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                } else {
+                    MarkdownText(text = part.text ?: "")
+                }
+            }
 
-            if (textContent.isNotBlank()) {
+            // Tool parts
+            message.parts.filter { it.type == "tool" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                ToolResultCard(part = part)
+            }
+
+            // Step-start parts (show thinking indicator)
+            message.parts.filter { it.type == "step-start" }.forEach { _ ->
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = textContent,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    },
+                    text = "Thinking...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            // Tool calls
-            message.parts.filter { it.toolCall != null }.forEach { part ->
-                part.toolCall?.let { toolCall ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                text = "Tool: ${toolCall.toolName}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            if (toolCall.args.isNotBlank() && toolCall.args != "{}") {
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = toolCall.args.take(200),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+            // Step-finish parts (show cost/tokens if available)
+            message.parts.filter { it.type == "step-finish" }.forEach { part ->
+                if (part.cost != null || part.tokens != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = buildString {
+                            part.cost?.let { append("${(it * 10000).toInt() / 10000.0} tokens") }
+                            part.tokens?.let {
+                                if (isNotEmpty()) append(" \u00B7 ")
+                                append("\u2191${it.input} \u2193${it.output}")
+                                if (it.reasoning > 0) append(" \u2728${it.reasoning}")
                             }
-                        }
-                    }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
-            // Tool results
-            message.parts.filter { it.toolResult != null }.forEach { part ->
-                part.toolResult?.let { result ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (result.error != null) {
-                            MaterialTheme.colorScheme.errorContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        tonalElevation = 1.dp,
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                text = if (result.error != null) "Failed: ${result.toolName}" else "Done: ${result.toolName}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (result.error != null) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                },
-                            )
-                            if (result.result.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = result.result.take(300),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 5,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
+            // File parts
+            message.parts.filter { it.type == "file" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = part.filename ?: part.url ?: "File",
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(6.dp),
+                    )
                 }
+            }
+
+            // Message-level cost/tokens info
+            if (!isUser && (message.info.cost != null || message.info.tokens != null)) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = buildString {
+                        message.info.cost?.let {
+                            val rounded = (it * 10000).toInt() / 10000.0
+                            append('\u0024') // dollar sign
+                            append(rounded)
+                        }
+                        message.info.tokens?.let {
+                            if (isNotEmpty()) append(" \u00B7 ")
+                            append("in:${it.input} out:${it.output}")
+                            if (it.reasoning > 0) append(" reason:${it.reasoning}")
+                        }
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
 @Composable
+fun ThinkingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition(label = "thinking")
+    val alpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "dot1",
+    )
+    val alpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, delayMillis = 200),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "dot2",
+    )
+    val alpha3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, delayMillis = 400),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "dot3",
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(8.dp),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("\u2022", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha1))
+        Spacer(modifier = Modifier.width(2.dp))
+        Text("\u2022", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha2))
+        Spacer(modifier = Modifier.width(2.dp))
+        Text("\u2022", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha3))
+    }
+}
+
+@Composable
 private fun isLightTheme(): Boolean {
     val bg = MaterialTheme.colorScheme.background
-    // Relative luminance from sRGB components
-    val luminance = 0.2126f * (bg.red) + 0.7152f * (bg.green) + 0.0722f * (bg.blue)
+    val luminance = 0.2126f * bg.red + 0.7152f * bg.green + 0.0722f * bg.blue
     return luminance > 0.5f
 }
 
@@ -318,17 +340,13 @@ fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    onAbort: () -> Unit,
     isSending: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        tonalElevation = 3.dp,
-        modifier = modifier,
-    ) {
+    Surface(tonalElevation = 3.dp, modifier = modifier) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -341,18 +359,19 @@ fun ChatInputBar(
                 shape = MaterialTheme.shapes.large,
                 enabled = !isSending,
             )
-            IconButton(
-                onClick = onSend,
-                enabled = value.isNotBlank() && !isSending,
-            ) {
-                if (isSending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .width(20.dp)
-                            .height(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
+            if (isSending) {
+                TextButton(
+                    onClick = onAbort,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text("Stop")
+                }
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(
+                    onClick = onSend,
+                    enabled = value.isNotBlank(),
+                ) {
                     Text("\u2191", style = MaterialTheme.typography.titleMedium)
                 }
             }
