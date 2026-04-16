@@ -1,7 +1,14 @@
 package ai.opencode.mobile.viewmodel
 
+import ai.opencode.mobile.model.MessageInfo
+import ai.opencode.mobile.model.MessageResponseItem
+import ai.opencode.mobile.model.Mode
+import ai.opencode.mobile.model.ModeModel
+import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.Provider
+import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.Session
-import ai.opencode.mobile.model.TimeInfo
+import ai.opencode.mobile.model.SessionTime
 import ai.opencode.mobile.repository.SessionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -20,27 +27,17 @@ class SessionListViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val testSessions = listOf(
-        Session(
-            id = "s1",
-            title = "Test Session 1",
-            directory = "/tmp/project1",
-            time = TimeInfo(created = 1000, updated = 3000),
-        ),
-        Session(
-            id = "s2",
-            title = "Test Session 2",
-            directory = "/tmp/project2",
-            time = TimeInfo(created = 2000, updated = 2000),
-        ),
+        Session(id = "s1", title = "Test Session 1", time = SessionTime(created = 1000, updated = 3000)),
+        Session(id = "s2", title = "Test Session 2", time = SessionTime(created = 2000, updated = 2000)),
     )
 
-    private lateinit var fakeRepository: FakeSessionRepository
+    private lateinit var fakeRepository: FakeSessionListTestRepository
     private lateinit var viewModel: SessionListViewModel
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        fakeRepository = FakeSessionRepository()
+        fakeRepository = FakeSessionListTestRepository()
         viewModel = SessionListViewModel(fakeRepository)
     }
 
@@ -80,7 +77,7 @@ class SessionListViewModelTest {
     @Test
     fun testCreateSessionSuccess() {
         fakeRepository.sessionsResult = Result.success(testSessions)
-        val newSession = Session(id = "s3", title = "New Session", time = TimeInfo(created = 5000, updated = 5000))
+        val newSession = Session(id = "s3", title = "New Session", time = SessionTime(created = 5000, updated = 5000))
         fakeRepository.createSessionResult = Result.success(newSession)
 
         var createdSession: Session? = null
@@ -117,24 +114,36 @@ class SessionListViewModelTest {
         viewModel.clearError()
         assertNull(viewModel.state.value.error)
     }
+
+    @Test
+    fun testRefreshSessions() {
+        val refreshedSessions = listOf(
+            Session(id = "s3", title = "Refreshed", time = SessionTime(created = 6000, updated = 6000)),
+        )
+        fakeRepository.sessionsResult = Result.success(refreshedSessions)
+
+        viewModel.refreshSessions()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertFalse(state.isRefreshing)
+        assertEquals(1, state.sessions.size)
+        assertEquals("s3", state.sessions[0].id)
+    }
 }
 
-class FakeSessionRepository : SessionRepository {
+class FakeSessionListTestRepository : SessionRepository {
     var sessionsResult: Result<List<Session>> = Result.success(emptyList())
     var createSessionResult: Result<Session> = Result.failure(Exception("Not configured"))
-    var messagesResult: Result<List<ai.opencode.mobile.model.Message>> = Result.success(emptyList())
-    var sendMessageResult: Result<Unit> = Result.success(Unit)
-    var abortResult: Result<Unit> = Result.success(Unit)
-    var shareResult: Result<Unit> = Result.success(Unit)
 
     override suspend fun getSessions(): Result<List<Session>> = sessionsResult
-    override suspend fun createSession(title: String?): Result<Session> = createSessionResult
-    override suspend fun getSession(sessionId: String): Result<Session> =
-        Result.failure(Exception("Not implemented"))
-    override suspend fun deleteSession(sessionId: String): Result<Unit> =
-        Result.failure(Exception("Not implemented"))
-    override suspend fun getMessages(sessionId: String): Result<List<ai.opencode.mobile.model.Message>> = messagesResult
-    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<Unit> = sendMessageResult
-    override suspend fun abortSession(sessionId: String): Result<Unit> = abortResult
-    override suspend fun shareSession(sessionId: String): Result<Unit> = shareResult
+    override suspend fun createSession(): Result<Session> = createSessionResult
+    override suspend fun deleteSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
+    override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> = Result.success(emptyList())
+    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo> = Result.failure(Exception("Not implemented"))
+    override suspend fun abortSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
+    override suspend fun shareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun unshareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun getProviders(): Result<ProvidersResponse> = Result.success(ProvidersResponse())
+    override suspend fun getModes(): Result<List<Mode>> = Result.success(emptyList())
 }

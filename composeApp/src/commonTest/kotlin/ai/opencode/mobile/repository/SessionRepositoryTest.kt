@@ -1,31 +1,30 @@
 package ai.opencode.mobile.repository
 
-import ai.opencode.mobile.model.Message
+import ai.opencode.mobile.model.MessageInfo
+import ai.opencode.mobile.model.MessageResponseItem
+import ai.opencode.mobile.model.Mode
+import ai.opencode.mobile.model.ModeModel
+import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.Provider
+import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.Session
+import ai.opencode.mobile.model.SessionTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Tests for SessionRepository interface contract.
- *
- * Since OpenCodeApiClient is a concrete class (not an interface), we test
- * the repository via the SessionRepository interface using a fake implementation.
- * This verifies the contract that ViewModels rely on.
- */
 class SessionRepositoryTest {
 
     private val testSessions = listOf(
-        Session(id = "s1", title = "Session 1"),
-        Session(id = "s2", title = "Session 2"),
+        Session(id = "s1", title = "Session 1", time = SessionTime(created = 1000, updated = 3000)),
+        Session(id = "s2", title = "Session 2", time = SessionTime(created = 2000, updated = 2000)),
     )
 
     @Test
     fun testFakeRepositoryGetSessionsSuccess() = runTest {
         val repo = FakeTestRepository(sessions = testSessions)
         val result = repo.getSessions()
-
         assertTrue(result.isSuccess)
         assertEquals(2, result.getOrNull()!!.size)
     }
@@ -34,7 +33,6 @@ class SessionRepositoryTest {
     fun testFakeRepositoryGetSessionsFailure() = runTest {
         val repo = FakeTestRepository(shouldFail = true)
         val result = repo.getSessions()
-
         assertTrue(result.isFailure)
     }
 
@@ -42,8 +40,7 @@ class SessionRepositoryTest {
     fun testFakeRepositoryCreateSession() = runTest {
         val newSession = Session(id = "new", title = "New")
         val repo = FakeTestRepository(createResult = newSession)
-        val result = repo.createSession("New")
-
+        val result = repo.createSession()
         assertTrue(result.isSuccess)
         assertEquals("new", result.getOrNull()!!.id)
     }
@@ -51,11 +48,13 @@ class SessionRepositoryTest {
     @Test
     fun testFakeRepositoryGetMessages() = runTest {
         val messages = listOf(
-            Message(id = "m1", role = "user", parts = emptyList()),
+            MessageResponseItem(
+                info = MessageInfo(id = "m1", role = "user", sessionId = "s1"),
+                parts = listOf(Part(type = "text", text = "Hello")),
+            ),
         )
         val repo = FakeTestRepository(messages = messages)
         val result = repo.getMessages("s1")
-
         assertTrue(result.isSuccess)
         assertEquals(1, result.getOrNull()!!.size)
     }
@@ -64,7 +63,6 @@ class SessionRepositoryTest {
     fun testFakeRepositorySendMessageSuccess() = runTest {
         val repo = FakeTestRepository()
         val result = repo.sendMessage("s1", "hello", "model", "provider")
-
         assertTrue(result.isSuccess)
     }
 
@@ -72,53 +70,103 @@ class SessionRepositoryTest {
     fun testFakeRepositoryAbortSessionSuccess() = runTest {
         val repo = FakeTestRepository()
         val result = repo.abortSession("s1")
-
         assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryDeleteSession() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.deleteSession("s1")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryShareSession() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.shareSession("s1")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryUnshareSession() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.unshareSession("s1")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryGetProviders() = runTest {
+        val providers = ProvidersResponse(
+            default = mapOf("openai" to "gpt-4o"),
+            providers = listOf(Provider(id = "openai", name = "OpenAI")),
+        )
+        val repo = FakeTestRepository(providersResponse = providers)
+        val result = repo.getProviders()
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrNull()!!.providers.size)
+    }
+
+    @Test
+    fun testFakeRepositoryGetModes() = runTest {
+        val modes = listOf(Mode(name = "code", model = ModeModel(modelId = "gpt-4", providerId = "openai")))
+        val repo = FakeTestRepository(modes = modes)
+        val result = repo.getModes()
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrNull()!!.size)
     }
 
     @Test
     fun testFakeRepositoryAllMethodsFailWhenConfigured() = runTest {
         val repo = FakeTestRepository(shouldFail = true)
-
         assertTrue(repo.getSessions().isFailure)
-        assertTrue(repo.createSession(null).isFailure)
-        assertTrue(repo.getSession("x").isFailure)
+        assertTrue(repo.createSession().isFailure)
         assertTrue(repo.deleteSession("x").isFailure)
         assertTrue(repo.getMessages("x").isFailure)
         assertTrue(repo.sendMessage("x", "t", "m", "p").isFailure)
         assertTrue(repo.abortSession("x").isFailure)
         assertTrue(repo.shareSession("x").isFailure)
+        assertTrue(repo.unshareSession("x").isFailure)
+        assertTrue(repo.getProviders().isFailure)
+        assertTrue(repo.getModes().isFailure)
     }
 }
 
 internal class FakeTestRepository(
     private val sessions: List<Session> = emptyList(),
     private val createResult: Session = Session(id = "default"),
-    private val messages: List<Message> = emptyList(),
+    private val messages: List<MessageResponseItem> = emptyList(),
+    private val providersResponse: ProvidersResponse = ProvidersResponse(),
+    private val modes: List<Mode> = emptyList(),
     private val shouldFail: Boolean = false,
 ) : SessionRepository {
 
     override suspend fun getSessions(): Result<List<Session>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(sessions)
 
-    override suspend fun createSession(title: String?): Result<Session> =
+    override suspend fun createSession(): Result<Session> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(createResult)
 
-    override suspend fun getSession(sessionId: String): Result<Session> =
-        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
+    override suspend fun deleteSession(sessionId: String): Result<Boolean> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(true)
 
-    override suspend fun deleteSession(sessionId: String): Result<Unit> =
-        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Unit)
-
-    override suspend fun getMessages(sessionId: String): Result<List<Message>> =
+    override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(messages)
 
-    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<Unit> =
-        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Unit)
+    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(MessageInfo(id = "m-new", role = "assistant", sessionId = sessionId))
 
-    override suspend fun abortSession(sessionId: String): Result<Unit> =
-        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Unit)
+    override suspend fun abortSession(sessionId: String): Result<Boolean> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(true)
 
-    override suspend fun shareSession(sessionId: String): Result<Unit> =
-        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Unit)
+    override suspend fun shareSession(sessionId: String): Result<Session> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
+
+    override suspend fun unshareSession(sessionId: String): Result<Session> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
+
+    override suspend fun getProviders(): Result<ProvidersResponse> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(providersResponse)
+
+    override suspend fun getModes(): Result<List<Mode>> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(modes)
 }

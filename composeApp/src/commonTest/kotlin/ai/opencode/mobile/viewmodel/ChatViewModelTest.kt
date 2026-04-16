@@ -1,7 +1,14 @@
 package ai.opencode.mobile.viewmodel
 
-import ai.opencode.mobile.model.Message
-import ai.opencode.mobile.model.MessagePart
+import ai.opencode.mobile.model.MessageInfo
+import ai.opencode.mobile.model.MessageResponseItem
+import ai.opencode.mobile.model.Mode
+import ai.opencode.mobile.model.ModeModel
+import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.Provider
+import ai.opencode.mobile.model.ProvidersResponse
+import ai.opencode.mobile.model.Session
+import ai.opencode.mobile.model.SessionTime
 import ai.opencode.mobile.repository.SessionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -20,25 +27,23 @@ class ChatViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val testMessages = listOf(
-        Message(
-            id = "m1",
-            role = "user",
-            parts = listOf(MessagePart(type = "text", text = "Hello")),
+        MessageResponseItem(
+            info = MessageInfo(id = "m1", role = "user", sessionId = "test-session"),
+            parts = listOf(Part(type = "text", text = "Hello")),
         ),
-        Message(
-            id = "m2",
-            role = "assistant",
-            parts = listOf(MessagePart(type = "text", text = "Hi there")),
+        MessageResponseItem(
+            info = MessageInfo(id = "m2", role = "assistant", sessionId = "test-session"),
+            parts = listOf(Part(type = "text", text = "Hi there")),
         ),
     )
 
-    private lateinit var fakeRepository: FakeChatRepository
+    private lateinit var fakeRepository: FakeChatTestRepository
     private lateinit var viewModel: ChatViewModel
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        fakeRepository = FakeChatRepository()
+        fakeRepository = FakeChatTestRepository()
         viewModel = ChatViewModel(fakeRepository, "test-session")
     }
 
@@ -58,8 +63,8 @@ class ChatViewModelTest {
         assertFalse(state.isLoading)
         assertNull(state.error)
         assertEquals(2, state.messages.size)
-        assertEquals("m1", state.messages[0].id)
-        assertEquals("m2", state.messages[1].id)
+        assertEquals("m1", state.messages[0].info.id)
+        assertEquals("m2", state.messages[1].info.id)
     }
 
     @Test
@@ -76,7 +81,9 @@ class ChatViewModelTest {
 
     @Test
     fun testSendMessageAddsOptimisticMessage() {
-        fakeRepository.sendMessageResult = Result.success(Unit)
+        fakeRepository.sendMessageResult = Result.success(
+            MessageInfo(id = "m-new", role = "assistant", sessionId = "test-session")
+        )
         fakeRepository.messagesResult = Result.success(testMessages)
 
         viewModel.sendMessage("Hello world")
@@ -84,7 +91,6 @@ class ChatViewModelTest {
 
         val state = viewModel.state.value
         assertFalse(state.isSending)
-        // After send completes, loadMessages is called which replaces the list
         assertTrue(state.messages.size >= 2)
     }
 
@@ -123,32 +129,39 @@ class ChatViewModelTest {
 
     @Test
     fun testAbortSession() {
-        fakeRepository.abortResult = Result.success(Unit)
+        fakeRepository.abortResult = Result.success(true)
 
         viewModel.abortSession()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Should not throw — just a fire-and-forget
         assertFalse(viewModel.state.value.isLoading)
+    }
+
+    @Test
+    fun testInitialModelState() {
+        val state = viewModel.state.value
+        assertEquals("", state.currentModelId)
+        assertEquals("", state.currentProviderId)
+        assertTrue(state.messages.isEmpty())
+        assertFalse(state.isLoading)
+        assertFalse(state.isSending)
+        assertNull(state.error)
     }
 }
 
-class FakeChatRepository : SessionRepository {
-    var messagesResult: Result<List<Message>> = Result.success(emptyList())
-    var sendMessageResult: Result<Unit> = Result.success(Unit)
-    var abortResult: Result<Unit> = Result.success(Unit)
+class FakeChatTestRepository : SessionRepository {
+    var messagesResult: Result<List<MessageResponseItem>> = Result.success(emptyList())
+    var sendMessageResult: Result<MessageInfo> = Result.success(MessageInfo(id = "m-new", role = "assistant", sessionId = "test"))
+    var abortResult: Result<Boolean> = Result.success(true)
 
-    override suspend fun getSessions(): Result<List<ai.opencode.mobile.model.Session>> =
-        Result.success(emptyList())
-    override suspend fun createSession(title: String?): Result<ai.opencode.mobile.model.Session> =
-        Result.failure(Exception("Not implemented"))
-    override suspend fun getSession(sessionId: String): Result<ai.opencode.mobile.model.Session> =
-        Result.failure(Exception("Not implemented"))
-    override suspend fun deleteSession(sessionId: String): Result<Unit> =
-        Result.failure(Exception("Not implemented"))
-    override suspend fun getMessages(sessionId: String): Result<List<Message>> = messagesResult
-    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<Unit> = sendMessageResult
-    override suspend fun abortSession(sessionId: String): Result<Unit> = abortResult
-    override suspend fun shareSession(sessionId: String): Result<Unit> =
-        Result.failure(Exception("Not implemented"))
+    override suspend fun getSessions(): Result<List<Session>> = Result.success(emptyList())
+    override suspend fun createSession(): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun deleteSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
+    override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> = messagesResult
+    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo> = sendMessageResult
+    override suspend fun abortSession(sessionId: String): Result<Boolean> = abortResult
+    override suspend fun shareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun unshareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun getProviders(): Result<ProvidersResponse> = Result.success(ProvidersResponse())
+    override suspend fun getModes(): Result<List<Mode>> = Result.success(emptyList())
 }
