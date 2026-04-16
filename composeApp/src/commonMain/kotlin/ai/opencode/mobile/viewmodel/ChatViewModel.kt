@@ -1,7 +1,10 @@
 package ai.opencode.mobile.viewmodel
 
-import ai.opencode.mobile.model.Message
-import ai.opencode.mobile.model.MessagePart
+import ai.opencode.mobile.model.MessageInfo
+import ai.opencode.mobile.model.MessageResponseItem
+import ai.opencode.mobile.model.MessageTime
+import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.platform.currentTimeSeconds
 import ai.opencode.mobile.repository.SessionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class ChatState(
-    val messages: List<Message> = emptyList(),
+    val messages: List<MessageResponseItem> = emptyList(),
     val isLoading: Boolean = false,
     val isSending: Boolean = false,
     val error: String? = null,
@@ -61,11 +64,14 @@ class ChatViewModel(
             _state.value = _state.value.copy(isSending = true, error = null)
 
             // Optimistically add user message
-            val optimisticMessage = Message(
-                id = "temp-${tempMessageCounter++}",
-                role = "user",
-                parts = listOf(MessagePart(type = "text", text = text)),
-                sessionId = sessionId,
+            val optimisticMessage = MessageResponseItem(
+                info = MessageInfo(
+                    id = "temp-${tempMessageCounter++}",
+                    role = "user",
+                    sessionId = sessionId,
+                    time = MessageTime(created = currentTimeSeconds()),
+                ),
+                parts = listOf(Part(type = "text", text = text)),
             )
             _state.value = _state.value.copy(
                 messages = _state.value.messages + optimisticMessage,
@@ -75,7 +81,6 @@ class ChatViewModel(
             result.fold(
                 onSuccess = {
                     _state.value = _state.value.copy(isSending = false)
-                    // Reload messages to get the full conversation including assistant response
                     loadMessages()
                 },
                 onFailure = { error ->

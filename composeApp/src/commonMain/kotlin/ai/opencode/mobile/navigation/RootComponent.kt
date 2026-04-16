@@ -90,6 +90,7 @@ class DefaultRootComponent(
                     sessionId = config.sessionId,
                     sessionTitle = config.sessionTitle,
                     sessionRepository = sessionRepository,
+                    config = serverConfig,
                 ),
             )
             is Config.Settings -> RootComponent.Child.SettingsChild(
@@ -129,9 +130,17 @@ class DefaultChatComponent(
     override val sessionId: String,
     override val sessionTitle: String,
     sessionRepository: SessionRepository,
+    config: ServerConfig = ServerConfig(),
 ) : ChatComponent, ComponentContext by componentContext {
 
-    override val viewModel = ChatViewModel(sessionRepository, sessionId)
+    override val viewModel = ChatViewModel(sessionRepository, sessionId).also {
+        if (config.modelId.isNotBlank() || config.providerId.isNotBlank()) {
+            it.setModel(
+                modelId = config.modelId.ifBlank { "default" },
+                providerId = config.providerId.ifBlank { "default" },
+            )
+        }
+    }
 }
 
 class DefaultSettingsComponent(

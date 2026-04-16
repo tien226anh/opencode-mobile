@@ -67,9 +67,9 @@ class SessionListViewModel(
         }
     }
 
-    fun createSession(title: String? = null, onCreated: (Session) -> Unit) {
+    fun createSession(onCreated: (Session) -> Unit) {
         viewModelScope.launch {
-            val result = sessionRepository.createSession(title)
+            val result = sessionRepository.createSession()
             result.fold(
                 onSuccess = { session ->
                     _state.value = _state.value.copy(
@@ -80,6 +80,24 @@ class SessionListViewModel(
                 onFailure = { error ->
                     _state.value = _state.value.copy(
                         error = error.message ?: "Failed to create session",
+                    )
+                },
+            )
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            val result = sessionRepository.deleteSession(sessionId)
+            result.fold(
+                onSuccess = {
+                    _state.value = _state.value.copy(
+                        sessions = _state.value.sessions.filter { it.id != sessionId },
+                    )
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = error.message ?: "Failed to delete session",
                     )
                 },
             )
