@@ -4,7 +4,11 @@ import ai.opencode.mobile.model.ServerConfig
 
 interface SettingsRepository {
     fun getServerConfig(): ServerConfig
-    suspend fun saveServerUrl(url: String)
-    suspend fun saveBasicAuth(auth: String)
-    suspend fun testConnection(): Result<Boolean>
+    suspend fun saveServerConfig(config: ServerConfig)
+    suspend fun testConnection(config: ServerConfig): Result<Boolean>
+}
+
+expect class SettingsStorage() {
+    fun load(): ServerConfig
+    fun save(config: ServerConfig)
 }

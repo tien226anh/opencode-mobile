@@ -28,7 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import ai.opencode.mobile.navigation.SettingsComponent
 
@@ -79,14 +79,38 @@ fun SettingsScreen(
                 value = state.serverUrl,
                 onValueChange = { component.viewModel.updateServerUrl(it) },
                 label = { Text("Server URL") },
+                placeholder = { Text("https://your-server.example.com") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+
+            HorizontalDivider()
+
+            Text(
+                text = "Authentication (optional)",
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            Text(
+                text = "Leave empty if the server has no authentication configured.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            OutlinedTextField(
+                value = state.username,
+                onValueChange = { component.viewModel.updateUsername(it) },
+                label = { Text("Username") },
+                placeholder = { Text("opencode") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
 
             OutlinedTextField(
-                value = state.basicAuth,
-                onValueChange = { component.viewModel.updateBasicAuth(it) },
-                label = { Text("Auth Token (optional)") },
+                value = state.password,
+                onValueChange = { component.viewModel.updatePassword(it) },
+                label = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -125,6 +149,14 @@ fun SettingsScreen(
                         },
                     )
                 }
+            }
+
+            Button(
+                onClick = { component.saveAndPersist() },
+                enabled = !state.isTesting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (state.isSaved) "Saved" else "Save Settings")
             }
 
             HorizontalDivider()

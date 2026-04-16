@@ -13,6 +13,7 @@ import com.arkivanov.essenty.lifecycle.resume
 import ai.opencode.mobile.navigation.DefaultRootComponent
 import ai.opencode.mobile.navigation.RootComponent
 import ai.opencode.mobile.network.OpenCodeApiClient
+import ai.opencode.mobile.repository.SettingsStorage
 import ai.opencode.mobile.ui.screens.ChatScreen
 import ai.opencode.mobile.ui.screens.SessionListScreen
 import ai.opencode.mobile.ui.screens.SettingsScreen
@@ -20,13 +21,15 @@ import ai.opencode.mobile.ui.theme.OpenCodeTheme
 
 @Composable
 fun App() {
-    val apiClient = remember { createOpenCodeApiClient() }
+    val settingsStorage = remember { createSettingsStorage() }
+    val apiClient = remember { createOpenCodeApiClient(settingsStorage) }
     val rootComponent = remember {
         val lifecycle = LifecycleRegistry()
         lifecycle.resume()
         DefaultRootComponent(
             componentContext = DefaultComponentContext(lifecycle = lifecycle),
             apiClient = apiClient,
+            settingsStorage = settingsStorage,
         )
     }
 
@@ -58,4 +61,6 @@ fun AppContent(rootComponent: RootComponent) {
     }
 }
 
-expect fun createOpenCodeApiClient(): OpenCodeApiClient
+expect fun createOpenCodeApiClient(settingsStorage: SettingsStorage): OpenCodeApiClient
+
+expect fun createSettingsStorage(): SettingsStorage

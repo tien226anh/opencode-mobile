@@ -4,10 +4,12 @@ import ai.opencode.mobile.model.ServerConfig
 import ai.opencode.mobile.network.OpenCodeApiClient
 import ai.opencode.mobile.repository.DefaultSessionRepository
 import ai.opencode.mobile.repository.SessionRepository
+import ai.opencode.mobile.repository.SettingsStorage
 import ai.opencode.mobile.viewmodel.ChatViewModel
 import ai.opencode.mobile.viewmodel.SessionListViewModel
 import ai.opencode.mobile.viewmodel.SettingsViewModel
 import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.decompose.DelicateDecomposeApi
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
@@ -41,13 +43,16 @@ interface ChatComponent {
 
 interface SettingsComponent {
     val viewModel: SettingsViewModel
+    fun saveAndPersist()
 }
 
 class DefaultRootComponent(
     componentContext: ComponentContext,
     private val apiClient: OpenCodeApiClient,
-    private val serverConfig: ServerConfig = ServerConfig(),
+    private val settingsStorage: SettingsStorage,
 ) : RootComponent, ComponentContext by componentContext {
+
+    private val serverConfig: ServerConfig = settingsStorage.load()
 
     private val sessionRepository: SessionRepository = DefaultSessionRepository(apiClient)
 
@@ -59,12 +64,13 @@ class DefaultRootComponent(
         initialConfiguration = Config.SessionList,
         key = "RootStack",
         handleBackButton = true,
-        childFactory = { config, context -> child(config, context, serverConfig) },
+        childFactory = { config, context -> child(config, context) },
     )
 
     override val stack: Value<ChildStack<Config, RootComponent.Child>> = _stack
 
-    private fun child(config: Config, componentContext: ComponentContext, config2: ServerConfig): RootComponent.Child =
+    @OptIn(DelicateDecomposeApi::class)
+    private fun child(config: Config, componentContext: ComponentContext): RootComponent.Child =
         when (config) {
             is Config.SessionList -> RootComponent.Child.SessionListChild(
                 DefaultSessionListComponent(
@@ -90,7 +96,7 @@ class DefaultRootComponent(
                 DefaultSettingsComponent(
                     componentContext = componentContext,
                     apiClient = apiClient,
-                    serverConfig = config2,
+                    settingsStorage = settingsStorage,
                 ),
             )
         }
@@ -131,8 +137,18 @@ class DefaultChatComponent(
 class DefaultSettingsComponent(
     componentContext: ComponentContext,
     apiClient: OpenCodeApiClient,
-    serverConfig: ServerConfig,
+    settingsStorage: SettingsStorage,
 ) : SettingsComponent, ComponentContext by componentContext {
 
-    override val viewModel = SettingsViewModel(apiClient, serverConfig)
+    private val storage = settingsStorage
+
+    override val viewModel = SettingsViewModel(
+        apiClient = apiClient,
+        initialConfig = settingsStorage.load(),
+    )
+
+    override fun saveAndPersist() {
+        val config = viewModel.saveSettings()
+        storage.save(config)
+    }
 }

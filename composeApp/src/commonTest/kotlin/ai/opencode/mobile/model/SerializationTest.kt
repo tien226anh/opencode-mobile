@@ -139,11 +139,13 @@ class SerializationTest {
     fun testServerConfigDefaultValues() {
         val config = ServerConfig(
             serverUrl = "http://localhost:4096",
-            basicAuth = "my-secret-token",
+            username = "opencode",
+            password = "my-secret-password",
         )
 
         assertEquals("http://localhost:4096", config.serverUrl)
-        assertEquals("my-secret-token", config.basicAuth)
+        assertEquals("opencode", config.username)
+        assertEquals("my-secret-password", config.password)
         assertFalse(config.isConnected)
     }
 

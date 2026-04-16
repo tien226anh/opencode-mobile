@@ -29,6 +29,7 @@ data class ProjectTimeInfo(
 @Serializable
 data class ServerConfig(
     val serverUrl: String = "",
-    val basicAuth: String = "",
+    val username: String = "",
+    val password: String = "",
     val isConnected: Boolean = false,
 )

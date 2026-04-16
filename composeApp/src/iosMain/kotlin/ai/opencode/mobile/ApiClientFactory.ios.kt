@@ -1,10 +1,23 @@
 package ai.opencode.mobile
 
 import ai.opencode.mobile.network.OpenCodeApiClient
+import ai.opencode.mobile.repository.SettingsStorage
 import io.ktor.client.engine.darwin.Darwin
 
-actual fun createOpenCodeApiClient(): OpenCodeApiClient {
+actual fun createOpenCodeApiClient(settingsStorage: SettingsStorage): OpenCodeApiClient {
+    val config = settingsStorage.load()
     val engine = Darwin.create()
     val httpClient = OpenCodeApiClient.createHttpClient(engine)
-    return OpenCodeApiClient(httpClient = httpClient, baseUrl = "http://localhost:4096")
+    val defaultUrl = config.serverUrl.ifBlank { "http://localhost:4096" }
+    return OpenCodeApiClient(
+        httpClient = httpClient,
+        baseUrl = defaultUrl,
+        basicAuth = if (config.username.isNotEmpty() || config.password.isNotEmpty()) {
+            OpenCodeApiClient.encodeCredentials(config.username, config.password)
+        } else {
+            ""
+        },
+    )
 }
+
+actual fun createSettingsStorage(): SettingsStorage = SettingsStorage()

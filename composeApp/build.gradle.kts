@@ -10,6 +10,10 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     androidTarget {
         compilations.all {
             compileTaskProvider.configure {
@@ -33,10 +37,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.components.resources)
+            implementation("org.jetbrains.compose.runtime:runtime:1.10.3")
+            implementation("org.jetbrains.compose.foundation:foundation:1.10.3")
+            implementation("org.jetbrains.compose.material3:material3:1.9.0")
+            implementation("org.jetbrains.compose.components:components-resources:1.10.3")
             implementation(libs.decompose)
             implementation(libs.decompose.extensions.compose)
             implementation(libs.lifecycle.viewmodel.compose)
@@ -69,12 +73,28 @@ android {
     namespace = "ai.opencode.mobile"
     compileSdk = 35
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../opencode-release.jks")
+            storePassword = "android"
+            keyAlias = "opencode"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "ai.opencode.mobile"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
     }
 
     compileOptions {

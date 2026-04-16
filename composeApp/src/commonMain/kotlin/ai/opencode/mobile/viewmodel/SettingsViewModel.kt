@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 
 data class SettingsState(
     val serverUrl: String = "http://localhost:4096",
-    val basicAuth: String = "",
+    val username: String = "",
+    val password: String = "",
     val isTesting: Boolean = false,
     val isConnectionSuccessful: Boolean? = null,
     val error: String? = null,
@@ -27,7 +28,8 @@ class SettingsViewModel(
 
     private val _state = MutableStateFlow(SettingsState(
         serverUrl = initialConfig.serverUrl.ifBlank { "http://localhost:4096" },
-        basicAuth = initialConfig.basicAuth,
+        username = initialConfig.username,
+        password = initialConfig.password,
     ))
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
@@ -35,13 +37,23 @@ class SettingsViewModel(
         _state.value = _state.value.copy(serverUrl = url, isConnectionSuccessful = null, isSaved = false)
     }
 
-    fun updateBasicAuth(auth: String) {
-        _state.value = _state.value.copy(basicAuth = auth, isConnectionSuccessful = null, isSaved = false)
+    fun updateUsername(username: String) {
+        _state.value = _state.value.copy(username = username, isConnectionSuccessful = null, isSaved = false)
+    }
+
+    fun updatePassword(password: String) {
+        _state.value = _state.value.copy(password = password, isConnectionSuccessful = null, isSaved = false)
     }
 
     fun testConnection() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isTesting = true, isConnectionSuccessful = null, error = null)
+            val config = ServerConfig(
+                serverUrl = _state.value.serverUrl,
+                username = _state.value.username,
+                password = _state.value.password,
+            )
+            apiClient.updateConfig(config.serverUrl, config.username, config.password)
             val result = apiClient.healthCheck()
             result.fold(
                 onSuccess = {
@@ -64,9 +76,11 @@ class SettingsViewModel(
     fun saveSettings(): ServerConfig {
         val config = ServerConfig(
             serverUrl = _state.value.serverUrl,
-            basicAuth = _state.value.basicAuth,
+            username = _state.value.username,
+            password = _state.value.password,
             isConnected = _state.value.isConnectionSuccessful == true,
         )
+        apiClient.updateConfig(config.serverUrl, config.username, config.password)
         _state.value = _state.value.copy(isSaved = true)
         return config
     }

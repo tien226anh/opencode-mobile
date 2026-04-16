@@ -4,9 +4,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".OpenCodeApplication"
         android:allowBackup="true"
         android:label="OpenCode Mobile"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:name=".MainActivity"
