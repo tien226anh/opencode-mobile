@@ -40,40 +40,40 @@ Port OpenCode (the open-source AI coding agent) to mobile using Compose Multipla
   - Acceptance Criteria: `libs.versions.toml` has all versions. Root and module `build.gradle.kts` files configured. `settings.gradle.kts` has correct repositories. `./gradlew tasks` succeeds.
 
 ### Phase 2: Core Data Layer
-- [ ] T3: Implement domain models (Session, Message, ToolCall, Project, Config)
+- [x] T3: Implement domain models (Session, Message, ToolCall, Project, Config)
   - Acceptance Criteria: Serializable data classes in `commonMain/model/`. Models match OpenCode server API schema. Unit tests pass.
-- [ ] T4: Implement networking layer (Ktor HTTP client, API endpoints, DTOs)
+- [x] T4: Implement networking layer (Ktor HTTP client, API endpoints, DTOs)
   - Acceptance Criteria: `OpenCodeApiClient` class with methods for sessions, messages, streaming. Platform-specific HTTP engines configured. Error handling. Unit tests with mock responses.
 
 ### Phase 3: Presentation Foundation
-- [ ] T5: Implement theme and design system (colors, typography, components)
+- [x] T5: Implement theme and design system (colors, typography, components)
   - Acceptance Criteria: `AppTheme` composable with dark/light themes. OpenCode brand colors. Material3 components styled consistently. Typography scale defined.
-- [ ] T6: Implement navigation graph (Decompose setup, routes, root component)
+- [x] T6: Implement navigation graph (Decompose setup, routes, root component)
   - Acceptance Criteria: `RootComponent` with stack navigation. Routes defined for all screens. iOS swipe-back works. Deep link support structure in place.
 
 ### Phase 4: Core Screens
-- [ ] T7: Implement connection/settings screen (server URL, API key configuration)
+- [x] T7: Implement connection/settings screen (server URL, API key configuration)
   - Acceptance Criteria: Form to enter server URL and optional auth. Connection test button. Settings persisted via DataStore. Works on both platforms.
-- [ ] T8: Implement session list screen (browse, create, switch sessions)
+- [x] T8: Implement session list screen (browse, create, switch sessions)
   - Acceptance Criteria: List of sessions with project name, date, preview. Pull-to-refresh. Create new session FAB. Navigate to chat on tap. Empty state.
-- [ ] T9: Implement chat screen (messages, streaming, input, tool results)
+- [x] T9: Implement chat screen (messages, streaming, input, tool results)
   - Acceptance Criteria: Message list with user/assistant messages. Streaming response display. Input bar with send button. Tool call details expandable. Auto-scroll to latest message. Markdown rendering for code blocks.
-- [ ] T10: Implement tool result and diff viewer components
+- [x] T10: Implement tool result and diff viewer components
   - Acceptance Criteria: Tool call cards (file read, edit, bash). Inline diff view with added/removed highlighting. Expandable/collapsible details. Permission prompt dialog.
 
 ### Phase 5: Platform & Polish
-- [ ] T11: Implement platform-specific code (expect/actual for platform info, sharing, haptics)
+- [x] T11: Implement platform-specific code (expect/actual for platform info, sharing, haptics)
   - Acceptance Criteria: `PlatformInfo` expect/actual. Share functionality. Haptic feedback on interactions. Platform-specific navigation bar styling.
-- [ ] T12: Add tests for shared logic and UI components
+- [x] T12: Add tests for shared logic and UI components
   - Acceptance Criteria: Unit tests for ViewModels and repositories. Compose UI tests for key screens. Test coverage for core flows. `./gradlew allTests` passes.
 
 ---
 
 ## Final Verification Wave
-- [ ] F1: Oracle Review - Architecture & Code Quality
-- [ ] F2: Oracle Review - Security & Error Handling
-- [ ] F3: Hands-on QA - Build, Run, Navigate on Android
-- [ ] F4: Code Quality Review - No AI slops, no stubs, no placeholders
+- [x] F1: Oracle Review - Architecture & Code Quality
+- [x] F2: Oracle Review - Security & Error Handling
+- [x] F3: Hands-on QA - Build, Run, Navigate on Android
+- [x] F4: Code Quality Review - No AI slops, no stubs, no placeholders
 
 ---
 
