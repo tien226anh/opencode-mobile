@@ -3,62 +3,133 @@ package ai.opencode.mobile.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * A message from the API. The /session/{id}/message endpoint returns
+ * SessionMessagesResponse (array of MessageResponseItem), where each item
+ * has `info` (the message metadata) and `parts` (message content parts).
+ */
 @Serializable
-data class Message(
+data class MessageResponseItem(
+    val info: MessageInfo,
+    val parts: List<Part> = emptyList(),
+)
+
+@Serializable
+data class MessageInfo(
     val id: String,
     val role: String,
-    val parts: List<MessagePart> = emptyList(),
     @SerialName("sessionID") val sessionId: String = "",
-    val time: MessageTimeInfo = MessageTimeInfo(),
+    @SerialName("modelID") val modelId: String? = null,
+    @SerialName("providerID") val providerId: String? = null,
+    val mode: String? = null,
+    val cost: Double? = null,
+    val path: MessagePath? = null,
+    val time: MessageTime = MessageTime(),
+    val tokens: MessageTokens? = null,
+    val summary: Boolean? = null,
+    val error: MessageError? = null,
 )
 
 @Serializable
-data class MessageTimeInfo(
+data class MessagePath(
+    val cwd: String = "",
+    val root: String = "",
+)
+
+@Serializable
+data class MessageTime(
     val created: Long = 0,
-    val updated: Long = 0,
+    val completed: Long? = null,
 )
 
 @Serializable
-data class MessagePart(
-    val type: String,
-    val text: String? = null,
-    val reasoning: String? = null,
-    @SerialName("toolCall") val toolCall: ToolCallInfo? = null,
-    @SerialName("toolResult") val toolResult: ToolResultInfo? = null,
-    @SerialName("sourceUrl") val sourceUrl: String? = null,
-    @SerialName("file") val file: FileInfo? = null,
-    @SerialName("stepStart") val stepStart: StepStartInfo? = null,
+data class MessageTokens(
+    val input: Long = 0,
+    val output: Long = 0,
+    val reasoning: Long = 0,
+    val cache: TokenCache? = null,
 )
 
 @Serializable
-data class ToolCallInfo(
-    @SerialName("toolCallID") val toolCallId: String,
-    @SerialName("toolName") val toolName: String,
-    val args: String = "{}",
-    val state: String = "call",
+data class TokenCache(
+    val read: Long = 0,
+    val write: Long = 0,
 )
 
 @Serializable
-data class ToolResultInfo(
-    @SerialName("toolCallID") val toolCallId: String,
-    @SerialName("toolName") val toolName: String,
-    val result: String = "",
-    val error: String? = null,
-)
-
-@Serializable
-data class FileInfo(
+data class MessageError(
     val name: String = "",
-    val path: String = "",
-    val content: String = "",
+    val data: String? = null,
 )
 
+/**
+ * Union type for message parts. The `type` field determines which fields are populated.
+ */
 @Serializable
-data class StepStartInfo(
+data class Part(
+    val id: String = "",
+    val type: String,
     @SerialName("messageID") val messageId: String = "",
+    @SerialName("sessionID") val sessionId: String = "",
+    // TextPart fields
+    val text: String? = null,
+    val synthetic: Boolean? = null,
+    val time: PartTime? = null,
+    // ToolPart fields
+    val tool: String? = null,
+    @SerialName("callID") val callId: String? = null,
+    val state: ToolState? = null,
+    // FilePart fields
+    val mime: String? = null,
+    val url: String? = null,
+    val filename: String? = null,
+    val source: String? = null, // serialized FileSource or SymbolSource
+    // SnapshotPart fields
+    val snapshot: String? = null,
+    // PatchPart fields
+    val files: List<String>? = null,
+    val hash: String? = null,
+    // StepFinishPart fields
+    val cost: Double? = null,
+    val tokens: PartTokens? = null,
 )
 
 @Serializable
-data class MessageListResponse(
-    val messages: List<Message> = emptyList(),
+data class PartTime(
+    val start: Long = 0,
+    val end: Long? = null,
+)
+
+@Serializable
+data class ToolState(
+    val status: String = "",
+    val input: String? = null,
+    val output: String? = null,
+    val error: String? = null,
+    val title: String? = null,
+    val metadata: String? = null,
+    val time: ToolTime? = null,
+)
+
+@Serializable
+data class ToolTime(
+    val start: Long = 0,
+    val end: Long = 0,
+)
+
+@Serializable
+data class PartTokens(
+    val input: Long = 0,
+    val output: Long = 0,
+    val reasoning: Long = 0,
+    val cache: TokenCache? = null,
+)
+
+/**
+ * SSE Event types
+ */
+@Serializable
+data class ServerEvent(
+    val type: String,
+    val properties: String = "", // JSON string of event-specific properties
 )

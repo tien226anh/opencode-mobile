@@ -6,18 +6,18 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Session(
     val id: String,
-    val slug: String = "",
-    @SerialName("projectID") val projectId: String = "",
-    @SerialName("workspaceID") val workspaceId: String? = null,
-    val directory: String = "",
-    @SerialName("parentID") val parentId: String? = null,
-    val summary: String? = null,
-    val share: ShareInfo? = null,
     val title: String = "",
-    val version: Int = 0,
-    val time: TimeInfo = TimeInfo(),
-    val permission: PermissionInfo? = null,
+    val version: String = "",
+    val time: SessionTime = SessionTime(),
+    @SerialName("parentID") val parentId: String? = null,
     val revert: RevertInfo? = null,
+    val share: ShareInfo? = null,
+)
+
+@Serializable
+data class SessionTime(
+    val created: Long = 0,
+    val updated: Long = 0,
 )
 
 @Serializable
@@ -26,37 +26,18 @@ data class ShareInfo(
 )
 
 @Serializable
-data class TimeInfo(
-    val created: Long = 0,
-    val updated: Long = 0,
-)
-
-@Serializable
-data class PermissionInfo(
-    val allow: List<String> = emptyList(),
-    val deny: List<String> = emptyList(),
-)
-
-@Serializable
 data class RevertInfo(
     @SerialName("messageID") val messageId: String = "",
-)
-
-@Serializable
-data class SessionListResponse(
-    val sessions: List<Session> = emptyList(),
-)
-
-@Serializable
-data class CreateSessionRequest(
-    val title: String? = null,
+    @SerialName("partID") val partId: String? = null,
+    val diff: String? = null,
+    val snapshot: String? = null,
 )
 
 @Serializable
 data class ChatRequest(
     @SerialName("modelID") val modelId: String,
     @SerialName("providerID") val providerId: String,
-    val parts: List<PartInput>,
+    val parts: List<TextPartInput>,
     @SerialName("messageID") val messageId: String? = null,
     val mode: String? = null,
     val system: String? = null,
@@ -64,13 +45,26 @@ data class ChatRequest(
 )
 
 @Serializable
-data class PartInput(
-    val type: String,
-    val text: String? = null,
+data class TextPartInput(
+    val type: String = "text",
+    val text: String,
 )
 
 @Serializable
-data class RevertRequest(
+data class SessionInitRequest(
+    @SerialName("messageID") val messageId: String,
+    @SerialName("modelID") val modelId: String,
+    @SerialName("providerID") val providerId: String,
+)
+
+@Serializable
+data class SessionRevertRequest(
     @SerialName("messageID") val messageId: String,
     @SerialName("partID") val partId: String? = null,
+)
+
+@Serializable
+data class SessionSummarizeRequest(
+    @SerialName("modelID") val modelId: String,
+    @SerialName("providerID") val providerId: String,
 )
