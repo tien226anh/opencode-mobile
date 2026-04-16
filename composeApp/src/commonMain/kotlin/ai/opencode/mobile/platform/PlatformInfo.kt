@@ -6,3 +6,6 @@ expect class PlatformInfo() {
 }
 
 expect fun getPlatformInfo(): PlatformInfo
+
+/** Returns current time in seconds since epoch (cross-platform) */
+expect fun currentTimeSeconds(): Long

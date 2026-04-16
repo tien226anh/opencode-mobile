@@ -6,3 +6,5 @@ actual class PlatformInfo actual constructor() {
 }
 
 actual fun getPlatformInfo(): PlatformInfo = PlatformInfo()
+
+actual fun currentTimeSeconds(): Long = System.currentTimeMillis() / 1000

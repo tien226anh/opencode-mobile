@@ -8,7 +8,7 @@ actual fun createOpenCodeApiClient(settingsStorage: SettingsStorage): OpenCodeAp
     val config = settingsStorage.load()
     val engine = Darwin.create()
     val httpClient = OpenCodeApiClient.createHttpClient(engine)
-    val defaultUrl = config.serverUrl.ifBlank { "http://localhost:4096" }
+    val defaultUrl = config.serverUrl.ifBlank { OpenCodeApiClient.DEFAULT_URL }
     return OpenCodeApiClient(
         httpClient = httpClient,
         baseUrl = defaultUrl,
