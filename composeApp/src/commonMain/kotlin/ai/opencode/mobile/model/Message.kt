@@ -2,6 +2,12 @@ package ai.opencode.mobile.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * A message from the API. The /session/{id}/message endpoint returns
@@ -60,7 +66,37 @@ data class TokenCache(
 data class MessageError(
     val name: String = "",
     val data: String? = null,
-)
+    /**
+     * The raw error field from the server. Can be:
+     * - A string: "error message"
+     * - An object: {"message": "...", "code": "..."}
+     * - An array: [{"code": "invalid_union", "message": "..."}]
+     * Stored as JsonElement to handle all formats without deserialization crash.
+     */
+    val error: JsonElement? = null,
+) {
+    /** Extract a human-readable error message from any error format. */
+    val errorMessage: String? get() = try {
+        when (error) {
+            is JsonPrimitive -> error?.jsonPrimitive?.content
+            is JsonObject ->
+                (error.jsonObject["message"] as? JsonPrimitive)?.content
+                    ?: (error.jsonObject["name"] as? JsonPrimitive)?.content
+            is kotlinx.serialization.json.JsonArray -> {
+                val first = error?.jsonArray?.firstOrNull()
+                when (first) {
+                    is JsonObject -> {
+                        val msg = (first.jsonObject["message"] as? JsonPrimitive)?.content
+                        val code = (first.jsonObject["code"] as? JsonPrimitive)?.content
+                        if (msg != null && code != null) "$code: $msg" else msg
+                    }
+                    else -> first?.toString()
+                }
+            }
+            else -> null
+        }
+    } catch (_: Exception) { null }
+}
 
 /**
  * Union type for message parts. The `type` field determines which fields are populated.

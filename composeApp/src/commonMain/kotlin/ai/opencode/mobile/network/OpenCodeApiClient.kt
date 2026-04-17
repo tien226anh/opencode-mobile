@@ -39,6 +39,18 @@ class OpenCodeApiClient(
     private suspend fun validateJsonResponse(response: HttpResponse): HttpResponse {
         val contentType = response.contentType()
         val requestUrl = response.request.url.toString()
+
+        // If the response is not 2xx, read the body and throw a meaningful error
+        // regardless of content-type — the server may return errors with
+        // non-JSON content-types like application/octet-stream.
+        if (!response.status.isSuccess()) {
+            val body = try { response.bodyAsText() } catch (_: Exception) { "" }
+            val errorMessage = parseServerErrorBody(body)
+            throw IllegalStateException(
+                "Server error (${response.status.value}): $errorMessage\n\nURL: ${requestUrl.take(100)}"
+            )
+        }
+
         if (contentType == null) {
             val body = response.bodyAsText()
             throw IllegalStateException(
@@ -52,7 +64,13 @@ class OpenCodeApiClient(
                 "Response preview: ${body.take(200)}"
             )
         }
-        if (!contentType.match(ContentType.Application.Json) && !contentType.match(ContentType.Text.Plain)) {
+        // Accept JSON, plain text, and also octet-stream (some server versions
+        // return error bodies with application/octet-stream but the body is JSON).
+        val isJsonLikeContentType = contentType.match(ContentType.Application.Json) ||
+            contentType.match(ContentType.Text.Plain) ||
+            contentType.match(ContentType.Application.OctetStream)
+
+        if (!isJsonLikeContentType) {
             val body = response.bodyAsText()
             if (contentType.match(ContentType.Text.Html)) {
                 val hint = when {
@@ -83,6 +101,55 @@ class OpenCodeApiClient(
             )
         }
         return response
+    }
+
+    /**
+     * Attempt to extract a human-readable error message from a server error response body.
+     * Handles various OpenCode server error formats:
+     *   - {"error": "message"}
+     *   - {"error": {"message": "...", "name": "..."}}
+     *   - {"error": [{"code": "...", "message": "..."}]}
+     *   - {"message": "..."}
+     *   - Plain text
+     */
+    private fun parseServerErrorBody(body: String): String {
+        if (body.isBlank()) return "Unknown error (empty response)"
+        return try {
+            val element = Json.parseToJsonElement(body)
+            when (element) {
+                is kotlinx.serialization.json.JsonObject -> {
+                    val errorField = element["error"]
+                    when (errorField) {
+                        is kotlinx.serialization.json.JsonPrimitive -> errorField.content
+                        is kotlinx.serialization.json.JsonObject -> {
+                            // e.g. {"error": {"message": "...", "name": "..."}}
+                            errorField["message"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                                ?: errorField["name"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                                ?: errorField.toString()
+                        }
+                        is kotlinx.serialization.json.JsonArray -> {
+                            // e.g. {"error": [{"code": "invalid_union", "message": "..."}]}
+                            errorField.firstOrNull()?.let { first ->
+                                when (first) {
+                                    is kotlinx.serialization.json.JsonObject -> {
+                                        val msg = (first["message"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+                                        val code = (first["code"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+                                        if (msg != null && code != null) "$code: $msg" else msg ?: first.toString()
+                                    }
+                                    else -> first.toString()
+                                }
+                            } ?: errorField.toString()
+                        }
+                        else -> errorField?.toString() ?: body.take(200)
+                    }
+                        ?: (element["message"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+                        ?: body.take(200)
+                }
+                else -> body.take(200)
+            }
+        } catch (_: Exception) {
+            body.take(200)
+        }
     }
 
     //region App endpoints (matching official SDK, with fallbacks for newer server versions)
