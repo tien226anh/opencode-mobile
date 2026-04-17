@@ -8,6 +8,7 @@ import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.Session
+import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -160,6 +161,7 @@ class SessionRepositoryTest {
         assertTrue(repo.respondPermission("x", "p", true).isFailure)
         assertTrue(repo.revertMessage("x", "m").isFailure)
         assertTrue(repo.unrevertMessage("x").isFailure)
+        assertTrue(repo.getSessionDiff("x").isFailure)
     }
 }
 
@@ -210,4 +212,7 @@ internal class FakeTestRepository(
 
     override suspend fun unrevertMessage(sessionId: String): Result<Session> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
+
+    override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(SessionDiffResponse())
 }

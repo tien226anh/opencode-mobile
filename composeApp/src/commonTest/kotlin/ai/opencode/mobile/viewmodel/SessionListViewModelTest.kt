@@ -7,6 +7,7 @@ import ai.opencode.mobile.model.ModeModel
 import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
+import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.Session
 import ai.opencode.mobile.model.SessionTime
 import ai.opencode.mobile.repository.SessionRepository
@@ -149,4 +150,5 @@ class FakeSessionListTestRepository : SessionRepository {
     override suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean> = Result.success(true)
     override suspend fun revertMessage(sessionId: String, messageId: String, partId: String?): Result<Session> = Result.success(Session(id = sessionId))
     override suspend fun unrevertMessage(sessionId: String): Result<Session> = Result.success(Session(id = sessionId))
+    override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> = Result.success(SessionDiffResponse())
 }

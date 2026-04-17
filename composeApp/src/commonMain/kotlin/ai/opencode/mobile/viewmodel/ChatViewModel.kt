@@ -4,11 +4,13 @@ import ai.opencode.mobile.model.Mode
 import ai.opencode.mobile.model.ModelInfo
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
+import ai.opencode.mobile.model.FileDiff
 import ai.opencode.mobile.model.MessageInfo
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.MessageTime
 import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Permission
+import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionStatus
 import ai.opencode.mobile.network.SSEClient
 import ai.opencode.mobile.network.SSEEvent
@@ -43,6 +45,9 @@ data class ChatState(
     val pendingPermission: Permission? = null,
     // Session status
     val sessionStatus: SessionStatus? = null,
+    // File diffs
+    val fileDiffs: List<FileDiff> = emptyList(),
+    val isLoadingDiffs: Boolean = false,
 ) {
     val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
     val selectedProviderModels: List<ModelInfo> get() =
@@ -390,6 +395,30 @@ class ChatViewModel(
                 onFailure = { error ->
                     _state.value = _state.value.copy(
                         error = "Restore failed: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Load file diffs for the current session.
+     */
+    fun loadSessionDiff() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoadingDiffs = true)
+            val result = sessionRepository.getSessionDiff(sessionId)
+            result.fold(
+                onSuccess = { response ->
+                    _state.value = _state.value.copy(
+                        fileDiffs = response.files,
+                        isLoadingDiffs = false,
+                    )
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        isLoadingDiffs = false,
+                        error = "Failed to load diffs: ${error.message ?: "Unknown error"}",
                     )
                 },
             )

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.SessionStatus
+import ai.opencode.mobile.ui.components.FileDiffCard
 import ai.opencode.mobile.navigation.ChatComponent
 import ai.opencode.mobile.ui.components.MarkdownText
 import ai.opencode.mobile.ui.components.PermissionDialog
@@ -140,6 +141,13 @@ fun ChatScreen(
                         Text("\u2190", style = MaterialTheme.typography.titleMedium)
                     }
                 },
+                actions = {
+                    if (state.fileDiffs.isNotEmpty() || state.isLoadingDiffs) {
+                        IconButton(onClick = { /* diffs already shown below */ }) {
+                            Text("\u2B06", style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                },
             )
         },
         bottomBar = {
@@ -164,6 +172,8 @@ fun ChatScreen(
                     },
                     onAbort = { component.viewModel.abortSession() },
                     isSending = state.isSending,
+                    diffCount = state.fileDiffs.size,
+                    onLoadDiffs = { component.viewModel.loadSessionDiff() },
                 )
             }
         },
@@ -204,6 +214,28 @@ fun ChatScreen(
                     if (state.isSending) {
                         item {
                             ThinkingIndicator()
+                        }
+                    }
+                    // File diffs section — shown when there are changes
+                    if (state.fileDiffs.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "File Changes (${state.fileDiffs.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        }
+                        items(items = state.fileDiffs, key = { it.file }) { diff ->
+                            FileDiffCard(diff = diff)
+                        }
+                    }
+                    if (state.isLoadingDiffs) {
+                        item {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
                         }
                     }
                 }
@@ -534,6 +566,8 @@ fun ChatInputBar(
     onSend: () -> Unit,
     onAbort: () -> Unit,
     isSending: Boolean,
+    diffCount: Int = 0,
+    onLoadDiffs: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Surface(tonalElevation = 3.dp, modifier = modifier) {
@@ -560,6 +594,15 @@ fun ChatInputBar(
                 }
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
+                if (diffCount > 0) {
+                    TextButton(onClick = { /* diffs already shown above */ }) {
+                        Text("$diffCount \u2B06", style = MaterialTheme.typography.labelSmall)
+                    }
+                } else if (onLoadDiffs != null) {
+                    TextButton(onClick = onLoadDiffs) {
+                        Text("Changes", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 IconButton(
                     onClick = onSend,
                     enabled = value.isNotBlank(),

@@ -17,6 +17,7 @@ interface SessionRepository {
     suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean>
     suspend fun revertMessage(sessionId: String, messageId: String, partId: String? = null): Result<Session>
     suspend fun unrevertMessage(sessionId: String): Result<Session>
+    suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse>
 }
 
 class DefaultSessionRepository(
@@ -76,4 +77,7 @@ class DefaultSessionRepository(
 
     override suspend fun unrevertMessage(sessionId: String): Result<Session> =
         apiClient.unrevertSession(sessionId)
+
+    override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
+        apiClient.getSessionDiff(sessionId)
 }

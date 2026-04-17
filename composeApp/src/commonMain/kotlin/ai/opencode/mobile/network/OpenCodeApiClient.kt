@@ -14,6 +14,8 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.decodeFromJsonElement
 
 class OpenCodeApiClient(
     private val httpClient: HttpClient,
@@ -251,6 +253,20 @@ class OpenCodeApiClient(
         }
         validateJsonResponse(response)
         response.body<Boolean>()
+    }
+
+    suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> = runCatching {
+        val response = httpClient.get("$baseUrl/session/$sessionId/diff") { addAuthHeader(this) }
+        // The server might return an array directly or wrapped in an object
+        validateJsonResponse(response)
+        val responseBody = response.bodyAsText()
+        val jsonElement = kotlinx.serialization.json.Json.parseToJsonElement(responseBody)
+        // If it's an array, wrap it in an object
+        if (jsonElement is kotlinx.serialization.json.JsonArray) {
+            SessionDiffResponse(files = Json { ignoreUnknownKeys = true }.decodeFromJsonElement(jsonElement))
+        } else {
+            Json { ignoreUnknownKeys = true }.decodeFromString<SessionDiffResponse>(responseBody)
+        }
     }
     //endregion
 

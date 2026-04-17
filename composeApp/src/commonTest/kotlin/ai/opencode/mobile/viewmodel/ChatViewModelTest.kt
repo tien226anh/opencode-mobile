@@ -10,6 +10,7 @@ import ai.opencode.mobile.model.Permission
 import ai.opencode.mobile.model.PermissionMetadata
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
+import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionStatus
 import ai.opencode.mobile.model.Session
 import ai.opencode.mobile.model.SessionTime
@@ -686,4 +687,7 @@ class FakeChatTestRepository : SessionRepository {
 
     override suspend fun unrevertMessage(sessionId: String): Result<Session> =
         Result.success(Session(id = sessionId))
+
+    override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
+        Result.success(SessionDiffResponse())
 }
