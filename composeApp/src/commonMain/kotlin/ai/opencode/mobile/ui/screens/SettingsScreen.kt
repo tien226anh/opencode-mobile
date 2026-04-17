@@ -85,9 +85,14 @@ fun SettingsScreen(
                 value = state.serverUrl,
                 onValueChange = { component.viewModel.updateServerUrl(it) },
                 label = { Text("Server URL") },
-                placeholder = { Text("https://your-server.example.com") },
+                placeholder = { Text("https://xxx.trycloudflare.com or http://localhost:54321") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+            )
+            Text(
+                text = "Enter the full URL including https://. For Cloudflare tunnels, use the https://xxx-xxx.trycloudflare.com URL from the tunnel output.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             HorizontalDivider()

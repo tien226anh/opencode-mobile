@@ -30,12 +30,15 @@ class OpenCodeApiClient(
 
     private suspend fun validateJsonResponse(response: HttpResponse): HttpResponse {
         val contentType = response.contentType()
+        val requestUrl = response.request.url.toString()
         if (contentType == null) {
             val body = response.bodyAsText()
             throw IllegalStateException(
                 "Server returned an unexpected response (no Content-Type).\n\n" +
+                "URL tried: ${requestUrl.take(100)}\n\n" +
                 "This usually means:\n" +
-                "• The server URL is incorrect\n" +
+                "• The server URL is incorrect — make sure to include the full URL\n" +
+                "  (e.g. https://xxx.trycloudflare.com, not just the hostname)\n" +
                 "• A proxy/tunnel is serving an HTML page instead of the API\n" +
                 "• Authentication is required but not configured\n\n" +
                 "Response preview: ${body.take(200)}"
@@ -44,17 +47,29 @@ class OpenCodeApiClient(
         if (!contentType.match(ContentType.Application.Json) && !contentType.match(ContentType.Text.Plain)) {
             val body = response.bodyAsText()
             if (contentType.match(ContentType.Text.Html)) {
+                val hint = when {
+                    requestUrl.startsWith("http://") && !requestUrl.contains("localhost") ->
+                        "\n\nHint: If using Cloudflare tunnel, use https:// not http://\n" +
+                        "  Example: https://xxx-xxx.trycloudflare.com"
+                    !requestUrl.contains(".") ->
+                        "\n\nHint: The URL looks incomplete. Make sure to enter the full URL\n" +
+                        "  Example: https://your-tunnel.trycloudflare.com"
+                    else -> ""
+                }
                 throw IllegalStateException(
                     "Server returned HTML instead of JSON.\n\n" +
+                    "URL tried: ${requestUrl.take(100)}\n\n" +
                     "This usually means:\n" +
-                    "• The server URL points to a web page, not the API\n" +
+                    "• The server URL points to the web console, not the API\n" +
                     "• A Cloudflare tunnel is serving an interstitial page\n" +
-                    "• The OpenCode server is not running at this URL\n\n" +
-                    "Make sure you're using the correct URL and the server is running."
+                    "• The OpenCode server is not running at this URL\n" +
+                    "• Authentication failed — check your username and password$hint\n\n" +
+                    "Make sure the OpenCode server is running and the URL is correct."
                 )
             }
             throw IllegalStateException(
                 "Server returned ${contentType} instead of JSON.\n\n" +
+                "URL tried: ${requestUrl.take(100)}\n\n" +
                 "Expected: application/json\nGot: ${contentType}\n\n" +
                 "Response preview: ${body.take(200)}"
             )
@@ -65,6 +80,16 @@ class OpenCodeApiClient(
     //region App endpoints (matching official SDK)
     suspend fun getAppInfo(): Result<AppInfo> = runCatching {
         val response = httpClient.get("$baseUrl/app") { addAuthHeader(this) }
+        // Check for 401 Unauthorized specifically - means auth is required but failed
+        if (response.status.value == 401) {
+            throw IllegalStateException(
+                "Authentication failed (401 Unauthorized).\n\n" +
+                "The server requires authentication. Please check:\n" +
+                "• Username: must match OPENCODE_SERVER_USERNAME (default: \"opencode\")\n" +
+                "• Password: must match OPENCODE_SERVER_PASSWORD set on the server\n\n" +
+                "If you don't know the credentials, contact the server administrator."
+            )
+        }
         validateJsonResponse(response)
         response.body<AppInfo>()
     }
