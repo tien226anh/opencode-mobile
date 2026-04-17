@@ -83,6 +83,7 @@ fun ChatScreen(
         component.viewModel.loadProviders()
         component.viewModel.loadModes()
         component.viewModel.loadTodoList()
+        component.viewModel.loadCommands()
     }
 
     LaunchedEffect(state.messages.size) {
@@ -168,7 +169,15 @@ fun ChatScreen(
                     onValueChange = { inputText = it },
                     onSend = {
                         if (inputText.isNotBlank()) {
-                            component.viewModel.sendMessage(inputText)
+                            // Check if this is a slash command
+                            if (inputText.startsWith("/") && inputText.length > 1) {
+                                val parts = inputText.substring(1).split(" ", limit = 2)
+                                val commandName = parts[0]
+                                val arguments = if (parts.size > 1) parts[1] else ""
+                                component.viewModel.executeCommand(commandName, arguments)
+                            } else {
+                                component.viewModel.sendMessage(inputText)
+                            }
                             inputText = ""
                         }
                     },
@@ -176,6 +185,7 @@ fun ChatScreen(
                     isSending = state.isSending,
                     diffCount = state.fileDiffs.size,
                     onLoadDiffs = { component.viewModel.loadSessionDiff() },
+                    commands = state.commands,
                 )
             }
         },
@@ -762,6 +772,7 @@ private fun isLightTheme(): Boolean {
     return luminance > 0.5f
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatInputBar(
     value: String,
@@ -771,46 +782,108 @@ fun ChatInputBar(
     isSending: Boolean,
     diffCount: Int = 0,
     onLoadDiffs: (() -> Unit)? = null,
+    commands: List<ai.opencode.mobile.model.SlashCommand> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
+    // Slash command autocomplete
+    val showCommandMenu = value.startsWith("/") && value.length > 1 && commands.isNotEmpty() && !isSending
+    val commandQuery = if (value.startsWith("/")) value.substring(1).split(" ").firstOrNull() ?: "" else ""
+    val matchingCommands = if (showCommandMenu) {
+        commands.filter { it.name.startsWith(commandQuery, ignoreCase = true) }
+    } else {
+        emptyList()
+    }
+    var commandMenuExpanded by remember { mutableStateOf(false) }
+
+    // Auto-expand/collapse based on matching commands
+    LaunchedEffect(matchingCommands.isNotEmpty(), showCommandMenu) {
+        commandMenuExpanded = showCommandMenu && matchingCommands.isNotEmpty()
+    }
+
     Surface(tonalElevation = 3.dp, modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Type a message...") },
-                maxLines = 4,
-                shape = MaterialTheme.shapes.large,
-                enabled = !isSending,
-            )
-            if (isSending) {
-                TextButton(
-                    onClick = onAbort,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        Column {
+            // Command autocomplete dropdown
+            if (showCommandMenu) {
+                ExposedDropdownMenuBox(
+                    expanded = commandMenuExpanded,
+                    onExpandedChange = { commandMenuExpanded = it },
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Stop")
-                }
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                if (diffCount > 0) {
-                    TextButton(onClick = { /* diffs already shown above */ }) {
-                        Text("$diffCount \u2B06", style = MaterialTheme.typography.labelSmall)
+                    // Invisible anchor for the dropdown
+                    Box(modifier = Modifier.menuAnchor().fillMaxWidth())
+                    ExposedDropdownMenu(
+                        expanded = commandMenuExpanded,
+                        onDismissRequest = { commandMenuExpanded = false },
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                    ) {
+                        matchingCommands.forEach { command ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = "/${command.name}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                            ),
+                                        )
+                                        command.description?.let {
+                                            Text(
+                                                text = it,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    // Insert command name + space
+                                    onValueChange("/${command.name} ")
+                                    commandMenuExpanded = false
+                                },
+                            )
+                        }
                     }
-                } else if (onLoadDiffs != null) {
-                    TextButton(onClick = onLoadDiffs) {
-                        Text("Changes", style = MaterialTheme.typography.labelSmall)
-                    }
                 }
-                IconButton(
-                    onClick = onSend,
-                    enabled = value.isNotBlank(),
-                ) {
-                    Text("\u2191", style = MaterialTheme.typography.titleMedium)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text(if (commands.isNotEmpty()) "Type / for commands..." else "Type a message...") },
+                    maxLines = 4,
+                    shape = MaterialTheme.shapes.large,
+                    enabled = !isSending,
+                )
+                if (isSending) {
+                    TextButton(
+                        onClick = onAbort,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) {
+                        Text("Stop")
+                    }
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    if (diffCount > 0) {
+                        TextButton(onClick = { /* diffs already shown above */ }) {
+                            Text("$diffCount \u2B06", style = MaterialTheme.typography.labelSmall)
+                        }
+                    } else if (onLoadDiffs != null) {
+                        TextButton(onClick = onLoadDiffs) {
+                            Text("Changes", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    IconButton(
+                        onClick = onSend,
+                        enabled = value.isNotBlank(),
+                    ) {
+                        Text("\u2191", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }

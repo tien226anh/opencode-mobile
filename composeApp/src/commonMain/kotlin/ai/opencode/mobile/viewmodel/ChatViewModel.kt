@@ -12,6 +12,7 @@ import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Permission
 import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionStatus
+import ai.opencode.mobile.model.SlashCommand
 import ai.opencode.mobile.model.Todo
 import ai.opencode.mobile.network.SSEClient
 import ai.opencode.mobile.network.SSEEvent
@@ -51,6 +52,8 @@ data class ChatState(
     val isLoadingDiffs: Boolean = false,
     // Todo list
     val todos: List<Todo> = emptyList(),
+    // Slash commands
+    val commands: List<SlashCommand> = emptyList(),
 ) {
     val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
     val selectedProviderModels: List<ModelInfo> get() =
@@ -468,6 +471,48 @@ class ChatViewModel(
                 onFailure = { error ->
                     _state.value = _state.value.copy(
                         error = "Failed to load todos: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Load available slash commands from the server.
+     */
+    fun loadCommands() {
+        viewModelScope.launch {
+            val result = sessionRepository.listCommands()
+            result.fold(
+                onSuccess = { commands ->
+                    _state.value = _state.value.copy(commands = commands)
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Failed to load commands: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Execute a slash command in the current session.
+     * @param command The command name (e.g. "compact", "summarize")
+     * @param arguments Additional arguments for the command
+     */
+    fun executeCommand(command: String, arguments: String = "") {
+        viewModelScope.launch {
+            val result = sessionRepository.executeCommand(sessionId, command, arguments)
+            result.fold(
+                onSuccess = {
+                    // Command executed — refresh messages and todo list
+                    loadMessages()
+                    loadTodoList()
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Command failed: ${error.message ?: "Unknown error"}",
                     )
                 },
             )

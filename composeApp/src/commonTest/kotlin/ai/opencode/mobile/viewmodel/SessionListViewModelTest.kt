@@ -155,5 +155,6 @@ class FakeSessionListTestRepository : SessionRepository {
     override suspend fun forkSession(sessionId: String, messageId: String?): Result<Session> = Result.success(Session(id = "forked-$sessionId"))
     override suspend fun getSessionChildren(sessionId: String): Result<List<Session>> = Result.success(emptyList())
     override suspend fun getTodoList(sessionId: String): Result<List<Todo>> = Result.success(emptyList())
-    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> = Result.success(true)
+    override suspend fun listCommands(): Result<List<ai.opencode.mobile.model.SlashCommand>> = Result.success(emptyList())
+    override suspend fun executeCommand(sessionId: String, command: String, arguments: String, messageId: String?, agent: String?, model: String?): Result<Boolean> = Result.success(true)
 }

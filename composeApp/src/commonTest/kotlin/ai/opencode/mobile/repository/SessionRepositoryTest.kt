@@ -166,6 +166,7 @@ class SessionRepositoryTest {
         assertTrue(repo.forkSession("x").isFailure)
         assertTrue(repo.getSessionChildren("x").isFailure)
         assertTrue(repo.getTodoList("x").isFailure)
+        assertTrue(repo.listCommands().isFailure)
         assertTrue(repo.executeCommand("x", "cmd").isFailure)
     }
 }
@@ -230,6 +231,9 @@ internal class FakeTestRepository(
     override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(emptyList())
 
-    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
+    override suspend fun listCommands(): Result<List<ai.opencode.mobile.model.SlashCommand>> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(emptyList())
+
+    override suspend fun executeCommand(sessionId: String, command: String, arguments: String, messageId: String?, agent: String?, model: String?): Result<Boolean> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(true)
 }

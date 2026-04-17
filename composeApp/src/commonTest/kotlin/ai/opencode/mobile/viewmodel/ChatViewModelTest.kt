@@ -682,6 +682,54 @@ class ChatViewModelTest {
 
         assertTrue(viewModel.state.value.error?.contains("Failed to load todos") == true)
     }
+
+    // --- NEW: Command tests ---
+
+    @Test
+    fun testLoadCommandsSuccess() {
+        val commands = listOf(
+            ai.opencode.mobile.model.SlashCommand(name = "compact", description = "Compact conversation"),
+            ai.opencode.mobile.model.SlashCommand(name = "summarize", description = "Summarize session"),
+        )
+        fakeRepository.commandsResult = Result.success(commands)
+
+        viewModel.loadCommands()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, viewModel.state.value.commands.size)
+        assertEquals("compact", viewModel.state.value.commands[0].name)
+        assertEquals("summarize", viewModel.state.value.commands[1].name)
+    }
+
+    @Test
+    fun testLoadCommandsFailureShowsError() {
+        fakeRepository.commandsResult = Result.failure(Exception("Commands load failed"))
+
+        viewModel.loadCommands()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.error?.contains("Failed to load commands") == true)
+    }
+
+    @Test
+    fun testExecuteCommandSuccess() {
+        fakeRepository.messagesResult = Result.success(testMessages)
+
+        viewModel.executeCommand("compact")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.error)
+    }
+
+    @Test
+    fun testExecuteCommandFailureShowsError() {
+        fakeRepository.executeCommandResult = Result.failure(Exception("Command failed"))
+
+        viewModel.executeCommand("invalid")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.error?.contains("Command failed") == true)
+    }
 }
 
 class FakeChatTestRepository : SessionRepository {
@@ -691,8 +739,9 @@ class FakeChatTestRepository : SessionRepository {
     var providersResult: Result<ProvidersResponse> = Result.success(ProvidersResponse())
     var modesResult: Result<List<Mode>> = Result.success(emptyList())
     var respondPermissionResult: Result<Boolean> = Result.success(true)
-
     var todoListResult: Result<List<Todo>> = Result.success(emptyList())
+    var commandsResult: Result<List<ai.opencode.mobile.model.SlashCommand>> = Result.success(emptyList())
+    var executeCommandResult: Result<Boolean> = Result.success(true)
 
     // Capture last sendMessage call for verification
     var lastSendMessageModelId: String = ""
@@ -725,25 +774,20 @@ class FakeChatTestRepository : SessionRepository {
         lastPermissionAllow = allow
         return respondPermissionResult
     }
-
     override suspend fun revertMessage(sessionId: String, messageId: String, partId: String?): Result<Session> =
         Result.success(Session(id = sessionId))
-
     override suspend fun unrevertMessage(sessionId: String): Result<Session> =
         Result.success(Session(id = sessionId))
-
     override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
         Result.success(SessionDiffResponse())
-
     override suspend fun forkSession(sessionId: String, messageId: String?): Result<Session> =
         Result.success(Session(id = "forked-$sessionId"))
-
     override suspend fun getSessionChildren(sessionId: String): Result<List<Session>> =
         Result.success(emptyList())
-
     override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
         todoListResult
-
-    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
-        Result.success(true)
+    override suspend fun listCommands(): Result<List<ai.opencode.mobile.model.SlashCommand>> =
+        commandsResult
+    override suspend fun executeCommand(sessionId: String, command: String, arguments: String, messageId: String?, agent: String?, model: String?): Result<Boolean> =
+        executeCommandResult
 }

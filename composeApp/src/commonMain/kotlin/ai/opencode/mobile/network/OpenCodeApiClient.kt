@@ -298,8 +298,27 @@ class OpenCodeApiClient(
         response.body<List<Todo>>()
     }
 
-    suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> = runCatching {
-        val requestBody = buildJsonObject { put("command", JsonPrimitive(command)) }
+    suspend fun listCommands(): Result<List<SlashCommand>> = runCatching {
+        val response = httpClient.get("$baseUrl/command") { addAuthHeader(this) }
+        validateJsonResponse(response)
+        response.body<List<SlashCommand>>()
+    }
+
+    suspend fun executeCommand(
+        sessionId: String,
+        command: String,
+        arguments: String = "",
+        messageId: String? = null,
+        agent: String? = null,
+        model: String? = null,
+    ): Result<Boolean> = runCatching {
+        val requestBody = buildJsonObject {
+            put("command", JsonPrimitive(command))
+            put("arguments", JsonPrimitive(arguments))
+            messageId?.let { put("messageID", JsonPrimitive(it)) }
+            agent?.let { put("agent", JsonPrimitive(it)) }
+            model?.let { put("model", JsonPrimitive(it)) }
+        }
         val response = httpClient.post("$baseUrl/session/$sessionId/command") {
             addAuthHeader(this)
             contentType(ContentType.Application.Json)

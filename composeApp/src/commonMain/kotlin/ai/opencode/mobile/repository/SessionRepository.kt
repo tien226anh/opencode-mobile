@@ -21,7 +21,8 @@ interface SessionRepository {
     suspend fun forkSession(sessionId: String, messageId: String? = null): Result<Session>
     suspend fun getSessionChildren(sessionId: String): Result<List<Session>>
     suspend fun getTodoList(sessionId: String): Result<List<Todo>>
-    suspend fun executeCommand(sessionId: String, command: String): Result<Boolean>
+    suspend fun listCommands(): Result<List<SlashCommand>>
+    suspend fun executeCommand(sessionId: String, command: String, arguments: String = "", messageId: String? = null, agent: String? = null, model: String? = null): Result<Boolean>
 }
 
 class DefaultSessionRepository(
@@ -94,6 +95,9 @@ class DefaultSessionRepository(
     override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
         apiClient.getTodoList(sessionId)
 
-    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
-        apiClient.executeCommand(sessionId, command)
+    override suspend fun listCommands(): Result<List<SlashCommand>> =
+        apiClient.listCommands()
+
+    override suspend fun executeCommand(sessionId: String, command: String, arguments: String, messageId: String?, agent: String?, model: String?): Result<Boolean> =
+        apiClient.executeCommand(sessionId, command, arguments, messageId, agent, model)
 }
