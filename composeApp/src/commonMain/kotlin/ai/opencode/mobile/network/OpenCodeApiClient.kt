@@ -249,7 +249,7 @@ class OpenCodeApiClient(
     }
 
     companion object {
-        const val DEFAULT_PORT = 54321
+        const val DEFAULT_PORT = 4096
         const val DEFAULT_URL = "http://localhost:$DEFAULT_PORT"
 
         @OptIn(ExperimentalEncodingApi::class)

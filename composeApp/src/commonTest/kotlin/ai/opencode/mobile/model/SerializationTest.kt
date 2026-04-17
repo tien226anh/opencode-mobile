@@ -237,14 +237,27 @@ class SerializationTest {
     @Test
     fun testServerConfigDefaults() {
         val config = ServerConfig(
-            serverUrl = "http://localhost:54321",
+            serverHost = "http://localhost",
+            serverPort = "4096",
             username = "opencode",
             password = "secret",
         )
-        assertEquals("http://localhost:54321", config.serverUrl)
+        assertEquals("http://localhost:4096", config.serverUrl)
+        assertEquals("http://localhost", config.serverHost)
+        assertEquals("4096", config.serverPort)
         assertEquals("opencode", config.username)
         assertEquals("secret", config.password)
         assertFalse(config.isConnected)
+    }
+
+    @Test
+    fun testServerConfigUrlComposition() {
+        // Host + port
+        assertEquals("http://10.0.2.2:4096", ServerConfig(serverHost = "http://10.0.2.2", serverPort = "4096").serverUrl)
+        // Host without port
+        assertEquals("https://xxx.trycloudflare.com", ServerConfig(serverHost = "https://xxx.trycloudflare.com", serverPort = "").serverUrl)
+        // Cloudflare with port
+        assertEquals("https://xxx.trycloudflare.com:443", ServerConfig(serverHost = "https://xxx.trycloudflare.com", serverPort = "443").serverUrl)
     }
 
     // --- Base64 encoding ---
@@ -281,7 +294,7 @@ class SerializationTest {
     // --- Default port consistency ---
     @Test
     fun testDefaultPortAndUrl() {
-        assertEquals(54321, OpenCodeApiClient.DEFAULT_PORT)
-        assertEquals("http://localhost:54321", OpenCodeApiClient.DEFAULT_URL)
+        assertEquals(4096, OpenCodeApiClient.DEFAULT_PORT)
+        assertEquals("http://localhost:4096", OpenCodeApiClient.DEFAULT_URL)
     }
 }

@@ -87,11 +87,19 @@ data class ModeModel(
 
 @Serializable
 data class ServerConfig(
-    val serverUrl: String = "",
+    val serverHost: String = "",
+    val serverPort: String = "4096",
     val username: String = "",
     val password: String = "",
     val isConnected: Boolean = false,
     val providerId: String = "",
     val modelId: String = "",
     val modeName: String = "",
-)
+) {
+    /** Computed full URL from host + port, e.g. "http://10.0.2.2:4096" */
+    val serverUrl: String get() {
+        if (serverHost.isBlank()) return ""
+        val host = serverHost.trimEnd('/')
+        return if (serverPort.isNotBlank()) "$host:$serverPort" else host
+    }
+}

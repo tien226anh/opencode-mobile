@@ -81,18 +81,41 @@ fun SettingsScreen(
             // --- Server Connection ---
             Text(text = "Server Connection", style = MaterialTheme.typography.titleMedium)
 
-            OutlinedTextField(
-                value = state.serverUrl,
-                onValueChange = { component.viewModel.updateServerUrl(it) },
-                label = { Text("Server URL") },
-                placeholder = { Text("http://localhost:54321 or https://xxx.trycloudflare.com") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.serverHost,
+                    onValueChange = { component.viewModel.updateServerHost(it) },
+                    label = { Text("Host") },
+                    placeholder = { Text("http://localhost") },
+                    modifier = Modifier.weight(2f),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = state.serverPort,
+                    onValueChange = { component.viewModel.updateServerPort(it) },
+                    label = { Text("Port") },
+                    placeholder = { Text("4096") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                )
+            }
+            Text(
+                text = "\u2022 Android emulator: localhost auto-maps to 10.0.2.2 (host machine)\n" +
+                    "\u2022 Physical device: Use your computer's LAN IP (e.g. http://192.168.1.x)\n" +
+                    "\u2022 Cloudflare tunnel: Use https:// and full URL (e.g. https://xxx.trycloudflare.com), leave port blank\n" +
+                    "\u2022 Server must listen on 0.0.0.0 for LAN access: opencode serve --hostname 0.0.0.0",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Enter the full URL including https://. For Cloudflare tunnels, use the https://xxx-xxx.trycloudflare.com URL from the tunnel output.\n\n" +
-                    "Tip: On Android emulator, localhost is auto-remapped to 10.0.2.2 (host machine). " +
-                    "On a physical device, use your computer's LAN IP (e.g. http://192.168.1.x:54321).",
+                    "\u2022 Android emulator: localhost is auto-remapped to 10.0.2.2 (host machine)\n" +
+                    "\u2022 Physical device: Use your computer's LAN IP (e.g. http://192.168.1.x:4096)\n" +
+                    "\u2022 Important: The server must listen on 0.0.0.0 for LAN access. Start with:\n" +
+                    "  opencode serve --hostname 0.0.0.0 --port 4096",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

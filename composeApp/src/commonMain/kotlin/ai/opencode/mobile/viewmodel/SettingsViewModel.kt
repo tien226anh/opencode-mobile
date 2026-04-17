@@ -14,7 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class SettingsState(
-    val serverUrl: String = OpenCodeApiClient.DEFAULT_URL,
+    val serverHost: String = "http://localhost",
+    val serverPort: String = "${OpenCodeApiClient.DEFAULT_PORT}",
     val username: String = "",
     val password: String = "",
     val isTesting: Boolean = false,
@@ -30,6 +31,12 @@ data class SettingsState(
     val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
     val selectedProviderModels: List<ModelInfo> get() =
         selectedProvider?.models?.values?.toList() ?: emptyList()
+
+    /** Computed full URL from host + port */
+    val serverUrl: String get() {
+        val host = serverHost.trimEnd('/')
+        return if (serverPort.isNotBlank()) "$host:$serverPort" else host
+    }
 }
 
 class SettingsViewModel(
@@ -39,7 +46,8 @@ class SettingsViewModel(
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _state = MutableStateFlow(SettingsState(
-        serverUrl = initialConfig.serverUrl.ifBlank { OpenCodeApiClient.DEFAULT_URL },
+        serverHost = initialConfig.serverHost.ifBlank { "http://localhost" },
+        serverPort = initialConfig.serverPort.ifBlank { "${OpenCodeApiClient.DEFAULT_PORT}" },
         username = initialConfig.username,
         password = initialConfig.password,
         selectedProviderId = initialConfig.providerId,
@@ -48,8 +56,12 @@ class SettingsViewModel(
     ))
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
-    fun updateServerUrl(url: String) {
-        _state.value = _state.value.copy(serverUrl = url, isConnectionSuccessful = null, isSaved = false)
+    fun updateServerHost(host: String) {
+        _state.value = _state.value.copy(serverHost = host, isConnectionSuccessful = null, isSaved = false)
+    }
+
+    fun updateServerPort(port: String) {
+        _state.value = _state.value.copy(serverPort = port, isConnectionSuccessful = null, isSaved = false)
     }
 
     fun updateUsername(username: String) {
@@ -120,7 +132,12 @@ class SettingsViewModel(
                         selectedModelId = autoModelId,
                     )
                 },
-                onFailure = { /* Silently fail - providers are optional */ },
+                onFailure = { error ->
+                    // Show error so user knows why providers aren't available
+                    _state.value = _state.value.copy(
+                        error = "Failed to load providers: ${error.message ?: "Unknown error"}",
+                    )
+                },
             )
         }
     }
@@ -135,14 +152,20 @@ class SettingsViewModel(
                         selectedModeName = currentMode.ifBlank { modes.firstOrNull()?.name ?: "" },
                     )
                 },
-                onFailure = { /* Silently fail - modes are optional */ },
+                onFailure = { error ->
+                    // Show error so user knows why modes aren't available
+                    _state.value = _state.value.copy(
+                        error = "Failed to load modes: ${error.message ?: "Unknown error"}",
+                    )
+                },
             )
         }
     }
 
     fun saveSettings(): ServerConfig {
         val config = ServerConfig(
-            serverUrl = _state.value.serverUrl,
+            serverHost = _state.value.serverHost,
+            serverPort = _state.value.serverPort,
             username = _state.value.username,
             password = _state.value.password,
             isConnected = _state.value.isConnectionSuccessful == true,
