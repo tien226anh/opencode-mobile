@@ -289,6 +289,13 @@ class ChatViewModel(
                             _state.value = _state.value.copy(isStreaming = false)
                         }
                     }
+                    is SSEEvent.TodoUpdated -> {
+                        _state.value = _state.value.copy(todos = event.todos)
+                    }
+                    is SSEEvent.SessionCompacted -> {
+                        // Session was compacted (context trimmed), refresh messages
+                        loadMessages()
+                    }
                     is SSEEvent.Error -> {
                         _state.value = _state.value.copy(isStreaming = false)
                         // Don't show SSE errors to user — fall back to polling

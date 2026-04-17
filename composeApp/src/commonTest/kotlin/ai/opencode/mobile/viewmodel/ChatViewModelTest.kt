@@ -641,6 +641,47 @@ class ChatViewModelTest {
         // After unrevert, messages should be refreshed (loadMessages called)
         assertNull(viewModel.state.value.error)
     }
+
+    // --- NEW: Todo SSE event tests ---
+
+    @Test
+    fun testTodoUpdatedSSEEventUpdatesState() {
+        val todos = listOf(
+            Todo(id = "t1", content = "Fix bug", status = "in_progress", priority = "high"),
+            Todo(id = "t2", content = "Add tests", status = "pending", priority = "normal"),
+        )
+        // Simulate SSE event by directly setting state (same pattern as testSSEPermissionUpdatedSetsPendingPermission)
+        viewModel._state.value = viewModel.state.value.copy(todos = todos)
+
+        assertEquals(2, viewModel.state.value.todos.size)
+        assertEquals("Fix bug", viewModel.state.value.todos[0].content)
+        assertEquals("in_progress", viewModel.state.value.todos[0].status)
+        assertEquals("Add tests", viewModel.state.value.todos[1].content)
+    }
+
+    @Test
+    fun testLoadTodoListSuccess() {
+        val todos = listOf(
+            Todo(id = "t1", content = "Task 1", status = "completed"),
+        )
+        fakeRepository.todoListResult = Result.success(todos)
+
+        viewModel.loadTodoList()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, viewModel.state.value.todos.size)
+        assertEquals("Task 1", viewModel.state.value.todos[0].content)
+    }
+
+    @Test
+    fun testLoadTodoListFailureShowsError() {
+        fakeRepository.todoListResult = Result.failure(Exception("Todo load failed"))
+
+        viewModel.loadTodoList()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.error?.contains("Failed to load todos") == true)
+    }
 }
 
 class FakeChatTestRepository : SessionRepository {
@@ -650,6 +691,8 @@ class FakeChatTestRepository : SessionRepository {
     var providersResult: Result<ProvidersResponse> = Result.success(ProvidersResponse())
     var modesResult: Result<List<Mode>> = Result.success(emptyList())
     var respondPermissionResult: Result<Boolean> = Result.success(true)
+
+    var todoListResult: Result<List<Todo>> = Result.success(emptyList())
 
     // Capture last sendMessage call for verification
     var lastSendMessageModelId: String = ""
@@ -699,7 +742,7 @@ class FakeChatTestRepository : SessionRepository {
         Result.success(emptyList())
 
     override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
-        Result.success(emptyList())
+        todoListResult
 
     override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
         Result.success(true)

@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonPrimitive
@@ -146,6 +148,19 @@ class SSEClient(
                     }
                     SSEEvent.SessionStatusUpdated(sessionStatus)
                 }
+                "todo.updated" -> {
+                    val todosElement = properties["todos"]
+                    val todos = if (todosElement != null) {
+                        json.decodeFromJsonElement<List<Todo>>(todosElement)
+                    } else {
+                        emptyList()
+                    }
+                    SSEEvent.TodoUpdated(todos)
+                }
+                "session.compacted" -> {
+                    val sessionId = properties["sessionID"]?.jsonPrimitive?.content ?: ""
+                    SSEEvent.SessionCompacted(sessionId)
+                }
                 else -> SSEEvent.Unknown(eventType)
             }
         } catch (e: Exception) {
@@ -169,6 +184,8 @@ sealed class SSEEvent {
     data class FileEdited(val file: String) : SSEEvent()
     data class PermissionUpdated(val permission: Permission) : SSEEvent()
     data class SessionStatusUpdated(val status: SessionStatus) : SSEEvent()
+    data class TodoUpdated(val todos: List<Todo>) : SSEEvent()
+    data class SessionCompacted(val sessionId: String) : SSEEvent()
     data class Error(val message: String) : SSEEvent()
     data class Unknown(val type: String) : SSEEvent()
 }

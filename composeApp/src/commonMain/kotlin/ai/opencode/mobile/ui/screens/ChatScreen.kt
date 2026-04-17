@@ -82,6 +82,7 @@ fun ChatScreen(
         component.viewModel.loadMessages()
         component.viewModel.loadProviders()
         component.viewModel.loadModes()
+        component.viewModel.loadTodoList()
     }
 
     LaunchedEffect(state.messages.size) {
@@ -210,6 +211,7 @@ fun ChatScreen(
                         MessageBubble(
                             message = message,
                             onRevert = { messageId -> component.viewModel.revertMessage(messageId) },
+                            onFork = { messageId -> component.viewModel.forkSession(messageId) },
                         )
                     }
                     if (state.isSending) {
@@ -450,6 +452,7 @@ fun TodoItem(
 fun MessageBubble(
     message: MessageResponseItem,
     onRevert: ((messageId: String) -> Unit)? = null,
+    onFork: ((messageId: String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isUser = message.info.role == "user"
@@ -674,18 +677,34 @@ fun MessageBubble(
                 )
             }
 
-            // Revert button for assistant messages
-            if (!isUser && onRevert != null && message.info.id.isNotEmpty() && !message.info.id.startsWith("temp-")) {
+            // Revert & Fork buttons for assistant messages
+            if (!isUser && message.info.id.isNotEmpty() && !message.info.id.startsWith("temp-")) {
                 Spacer(modifier = Modifier.height(4.dp))
-                TextButton(
-                    onClick = { onRevert(message.info.id) },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "\u21A9 Undo",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (onRevert != null) {
+                        TextButton(
+                            onClick = { onRevert(message.info.id) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = "\u21A9 Undo",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (onFork != null) {
+                        TextButton(
+                            onClick = { onFork(message.info.id) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = "\u21C0 Fork",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }
