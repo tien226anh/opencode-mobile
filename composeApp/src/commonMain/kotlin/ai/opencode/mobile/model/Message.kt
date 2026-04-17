@@ -32,7 +32,13 @@ data class MessageInfo(
     val path: MessagePath? = null,
     val time: MessageTime = MessageTime(),
     val tokens: MessageTokens? = null,
-    val summary: Boolean? = null,
+    /**
+     * Summary field — can be:
+     * - Boolean: true/false (older server versions)
+     * - Object: {"diffs": [...]} (current server version)
+     * Stored as JsonElement to handle both without crash.
+     */
+    val summary: JsonElement? = null,
     val error: MessageError? = null,
 )
 
