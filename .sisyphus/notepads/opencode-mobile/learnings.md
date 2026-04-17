@@ -36,7 +36,55 @@
 - Coil 3 for image loading
 - Material3 for UI components
 
-## OpenCode Server API (from source code research)
+## OpenCode Server API (from source code research + community analysis 2025-04-17)
+
+### TWO ARCHITECTURE PATTERNS IN THE WILD
+
+**Pattern A: DIRECT client** (our app, opencode.nvim)
+- Connect directly to the OpenCode server (Hono HTTP, default port 54321)
+- Call REST API endpoints: /session, /event, /app, /mode, /config/providers
+- Subscribe to SSE at GET /event for real-time updates
+- Auth: Basic Auth header when server password is set
+
+**Pattern B: Proxy/Bridge server** (CodeNomad, OpenChamber, OpenWork, kimaki)
+- Runs its OWN server (Fastify/Hono) that proxies/bridges to OpenCode instances
+- Spawns/manages OpenCode processes as child instances
+- Example: CodeNomad's consumeStream() reads from http://127.0.0.1:{port}/global/event
+- Example: OpenWork uses @opencode-ai/sdk/v2/client to connect + SSE
+- Still calls OpenCode REST API internally
+
+### Architecture Comparison
+| Project | Stack | API Access | SSE Endpoint | Auth |
+|---------|-------|-----------|-------------|------|
+| Our app | KMP/Ktor | Direct REST | /event | Basic Auth |
+| CodeNomad | Fastify+SolidJS | Own server→OpenCode | /global/event (internal) /api/events (UI) | Own auth layer |
+| OpenChamber | Hono+React/Tauri | Own server→OpenCode | Proxied | UI password+tunnels |
+| OpenWork | Tauri+React | Own server→OpenCode | Uses SDK | Managed |
+| kimaki | Node CLI | @opencode-ai/sdk | SDK stream | Local process |
+| opencode.nvim | Lua+curl | Direct REST | /event | Local (no auth) |
+| ai-sdk-provider | TypeScript | @opencode-ai/sdk | SDK stream | SDK auth |
+| opencode-obsidian | TypeScript | Embeds web view | N/A | --cors flag |
+
+### KEY FINDING: SSE Event Types (official SDK)
+Full list from opencode-sdk-js src/resources/event.ts:
+- message.updated (properties: { info: Message })
+- message.part.updated (properties: { part: Part })
+- message.part.removed (properties: { messageID, partID })
+- message.removed (properties: { messageID, sessionID })
+- session.updated (properties: { info: Session })
+- session.deleted (properties: { info: Session })
+- session.idle (properties: { sessionID })
+- session.error (properties: { error: ProviderAuthError|UnknownError|..., sessionID? })
+- file.edited (properties: { file })
+- file.watcher.updated (properties: { event: rename|change, file })
+- permission.updated (properties: { id, metadata, sessionID, time, title })
+- installation.updated, lsp.client.diagnostics, ide.installed, storage.write
+
+### KEY FINDING: Our app is ALIGNED
+- Our SSEEvent sealed class matches the official SDK types ✓
+- Our API endpoints match the SDK (/session, /event, /app, /mode, /config/providers) ✓
+- Our auth approach (Basic Auth) matches the server middleware ✓
+- Missing compared to community: file.watcher.updated, lsp.client.diagnostics, ide.installed, storage.write, installation.updated — but these are not critical for mobile
 
 ### Authentication
 - HTTP Basic Auth: username "opencode", password from OPENCODE_SERVER_PASSWORD env var
@@ -58,10 +106,22 @@
 - GET /global/health - Health check
 - GET /global/event - SSE stream for global events
 
-### Streaming
-- SSE at /global/event is the primary streaming mechanism
-- Mobile clients connect with optional Basic Auth headers
-- Events include session updates, message updates, etc.
+### Streaming (SSE)
+- SSE endpoint: GET /event (NOT /global/event)
+  - Official SDK: `this._client.get('/event', { stream: true })` — confirmed in opencode-sdk-js
+  - CodeNomad uses `/global/event` when connecting to OpenCode instances (their OWN server proxies at `/api/events`)
+  - opencode.nvim uses `/event` — confirmed in `sse_subscribe()` method
+- CRITICAL: Must use ByteReadChannel for real-time SSE, NOT bodyAsText() — which buffers everything
+- Ktor 3.1.3 does NOT have built-in SSE client — must parse manually
+- ByteReadChannel approach: read line-by-line using `readUTF8Line()` in a while loop
+- SSE format: `event: type\ndata: json\n\n` with blank lines separating events
+- Event types from official SDK (event.ts):
+  - message.updated, message.part.updated, message.part.removed, message.removed
+  - session.updated, session.deleted, session.idle, session.error
+  - file.edited, file.watcher.updated, permission.updated
+  - installation.updated, lsp.client.diagnostics, ide.installed, storage.write
+- Our app currently uses `/event` — CORRECT per the official SDK
+- opencode.nvim also includes: session.diff, session.heartbeat, server.connected, server.instance.disposed, permission.replied
 
 ### SessionChatParams (request body)
 ```json
