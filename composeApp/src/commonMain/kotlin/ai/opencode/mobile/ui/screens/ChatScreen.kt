@@ -54,8 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.SessionStatus
 import ai.opencode.mobile.navigation.ChatComponent
 import ai.opencode.mobile.ui.components.MarkdownText
+import ai.opencode.mobile.ui.components.PermissionDialog
 import ai.opencode.mobile.ui.components.ToolResultCard
 import ai.opencode.mobile.ui.theme.AssistantMessageBackground
 import ai.opencode.mobile.ui.theme.AssistantMessageBackgroundLight
@@ -114,6 +116,21 @@ fun ChatScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        // Session status indicator
+                        val status = state.sessionStatus
+                        if (status != null && status !is SessionStatus.Idle) {
+                            Text(
+                                text = when (status) {
+                                    is SessionStatus.Busy -> "\u26A1 Processing..."
+                                    is SessionStatus.Retry -> "\u21BB Retrying (attempt ${status.attempt})..."
+                                    is SessionStatus.Idle -> "" // won't reach here due to condition
+                                    is SessionStatus.Unknown -> "\u25CB ${status.type}"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                maxLines = 1,
                             )
                         }
                     }
@@ -179,7 +196,10 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(items = state.messages, key = { it.info.id }) { message ->
-                        MessageBubble(message = message)
+                        MessageBubble(
+                            message = message,
+                            onRevert = { messageId -> component.viewModel.revertMessage(messageId) },
+                        )
                     }
                     if (state.isSending) {
                         item {
@@ -188,6 +208,14 @@ fun ChatScreen(
                     }
                 }
             }
+        }
+        // Permission dialog — shown when a tool permission request is pending
+        state.pendingPermission?.let { permission ->
+            PermissionDialog(
+                permission = permission,
+                onAllow = { component.viewModel.respondToPermission(allow = true) },
+                onDeny = { component.viewModel.respondToPermission(allow = false) },
+            )
         }
     }
 }
@@ -323,6 +351,7 @@ fun ProviderModelModeBar(
 @Composable
 fun MessageBubble(
     message: MessageResponseItem,
+    onRevert: ((messageId: String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isUser = message.info.role == "user"
@@ -427,6 +456,21 @@ fun MessageBubble(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            // Revert button for assistant messages
+            if (!isUser && onRevert != null && message.info.id.isNotEmpty() && !message.info.id.startsWith("temp-")) {
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(
+                    onClick = { onRevert(message.info.id) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = "\u21A9 Undo",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

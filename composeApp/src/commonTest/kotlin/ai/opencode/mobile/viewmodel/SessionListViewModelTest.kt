@@ -146,4 +146,7 @@ class FakeSessionListTestRepository : SessionRepository {
     override suspend fun unshareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
     override suspend fun getProviders(): Result<ProvidersResponse> = Result.success(ProvidersResponse())
     override suspend fun getModes(): Result<List<Mode>> = Result.success(emptyList())
+    override suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean> = Result.success(true)
+    override suspend fun revertMessage(sessionId: String, messageId: String, partId: String?): Result<Session> = Result.success(Session(id = sessionId))
+    override suspend fun unrevertMessage(sessionId: String): Result<Session> = Result.success(Session(id = sessionId))
 }

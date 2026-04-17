@@ -242,6 +242,16 @@ class OpenCodeApiClient(
         validateJsonResponse(response)
         response.body<Boolean>()
     }
+
+    suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean> = runCatching {
+        val response = httpClient.post("$baseUrl/session/$sessionId/permissions/$permissionId") {
+            addAuthHeader(this)
+            contentType(ContentType.Application.Json)
+            setBody(PermissionResponse(response = if (allow) "allow" else "deny"))
+        }
+        validateJsonResponse(response)
+        response.body<Boolean>()
+    }
     //endregion
 
     //region Config/Provider endpoints

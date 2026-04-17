@@ -8,6 +8,8 @@ import ai.opencode.mobile.model.MessageInfo
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.MessageTime
 import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.Permission
+import ai.opencode.mobile.model.SessionStatus
 import ai.opencode.mobile.network.SSEClient
 import ai.opencode.mobile.network.SSEEvent
 import ai.opencode.mobile.platform.currentTimeSeconds
@@ -37,6 +39,10 @@ data class ChatState(
     val selectedModeName: String = "",
     val isLoadingProviders: Boolean = false,
     val isLoadingModes: Boolean = false,
+    // Permission handling
+    val pendingPermission: Permission? = null,
+    // Session status
+    val sessionStatus: SessionStatus? = null,
 ) {
     val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
     val selectedProviderModels: List<ModelInfo> get() =
@@ -55,7 +61,7 @@ class ChatViewModel(
     private var tempMessageCounter = 0L
     private var sseJob: kotlinx.coroutines.Job? = null
 
-    private val _state = MutableStateFlow(ChatState())
+    internal val _state = MutableStateFlow(ChatState())
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
     fun loadMessages() {
@@ -264,7 +270,17 @@ class ChatViewModel(
                         sseJob?.cancel()
                     }
                     is SSEEvent.FileEdited -> { /* No action needed for chat */ }
-                    is SSEEvent.PermissionUpdated -> { /* No action needed for chat */ }
+                    is SSEEvent.PermissionUpdated -> {
+                        // Show permission dialog to user
+                        _state.value = _state.value.copy(pendingPermission = event.permission)
+                    }
+                    is SSEEvent.SessionStatusUpdated -> {
+                        _state.value = _state.value.copy(sessionStatus = event.status)
+                        // If idle, stop streaming indicator
+                        if (event.status is SessionStatus.Idle) {
+                            _state.value = _state.value.copy(isStreaming = false)
+                        }
+                    }
                     is SSEEvent.Error -> {
                         _state.value = _state.value.copy(isStreaming = false)
                         // Don't show SSE errors to user — fall back to polling
@@ -315,6 +331,69 @@ class ChatViewModel(
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    /**
+     * Respond to a pending permission request.
+     * @param allow true to approve, false to deny
+     */
+    fun respondToPermission(allow: Boolean) {
+        val permission = _state.value.pendingPermission ?: return
+        viewModelScope.launch {
+            val result = sessionRepository.respondPermission(sessionId, permission.id, allow)
+            result.fold(
+                onSuccess = {
+                    _state.value = _state.value.copy(pendingPermission = null)
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Permission response failed: ${error.message ?: "Unknown error"}",
+                        pendingPermission = null,
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Undo (revert) a message. This removes the message and all subsequent messages,
+     * rolling back to the specified message.
+     */
+    fun revertMessage(messageId: String, partId: String? = null) {
+        viewModelScope.launch {
+            val result = sessionRepository.revertMessage(sessionId, messageId, partId)
+            result.fold(
+                onSuccess = {
+                    // Refresh messages after revert
+                    loadMessages()
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Revert failed: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Restore an undone (reverted) message.
+     */
+    fun unrevertMessage() {
+        viewModelScope.launch {
+            val result = sessionRepository.unrevertMessage(sessionId)
+            result.fold(
+                onSuccess = {
+                    // Refresh messages after unrevert
+                    loadMessages()
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Restore failed: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
     }
 
     fun stopStreaming() {

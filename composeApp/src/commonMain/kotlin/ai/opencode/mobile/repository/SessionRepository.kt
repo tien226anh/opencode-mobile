@@ -14,6 +14,9 @@ interface SessionRepository {
     suspend fun unshareSession(sessionId: String): Result<Session>
     suspend fun getProviders(): Result<ProvidersResponse>
     suspend fun getModes(): Result<List<Mode>>
+    suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean>
+    suspend fun revertMessage(sessionId: String, messageId: String, partId: String? = null): Result<Session>
+    suspend fun unrevertMessage(sessionId: String): Result<Session>
 }
 
 class DefaultSessionRepository(
@@ -62,4 +65,15 @@ class DefaultSessionRepository(
 
     override suspend fun getModes(): Result<List<Mode>> =
         apiClient.getModes()
+
+    override suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean> =
+        apiClient.respondPermission(sessionId, permissionId, allow)
+
+    override suspend fun revertMessage(sessionId: String, messageId: String, partId: String?): Result<Session> {
+        val request = SessionRevertRequest(messageId = messageId, partId = partId)
+        return apiClient.revertMessage(sessionId, request)
+    }
+
+    override suspend fun unrevertMessage(sessionId: String): Result<Session> =
+        apiClient.unrevertSession(sessionId)
 }

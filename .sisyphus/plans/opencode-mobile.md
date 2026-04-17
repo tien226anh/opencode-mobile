@@ -67,6 +67,30 @@ Port OpenCode (the open-source AI coding agent) to mobile using Compose Multipla
 - [x] T12: Add tests for shared logic and UI components
   - Acceptance Criteria: Unit tests for ViewModels and repositories. Compose UI tests for key screens. Test coverage for core flows. `./gradlew allTests` passes.
 
+### Phase 6: SDK Parity — Critical (Permission + Status + Revert)
+- [x] T13: Implement Permission System (model, API, SSE, UI dialog) with TDD
+  - Acceptance Criteria: `Permission` model with id/type/pattern/sessionID/messageID/callID/title/metadata/time. `POST /session/:id/permissions/:permissionID` endpoint in OpenCodeApiClient. `permission.updated` SSE event parsed with full Permission data. `PermissionDialog` UI that shows tool name, asks approve/deny, and calls the API. ChatViewModel handles permission flow. Unit tests for all.
+- [x] T14: Implement Session Status (model, SSE, UI badges) with TDD
+  - Acceptance Criteria: `SessionStatus` sealed class (Idle/Busy/Retry). `session.status` SSE event handled in SSEClient. Status badge shown in SessionListScreen and ChatScreen toolbar. ChatViewModel tracks current session status. Unit tests for parsing, state updates.
+- [ ] T15: Implement Message Revert/Undo (API endpoints, UI buttons) with TDD
+  - Acceptance Criteria: `revertMessage()` and `unrevertSession()` already in API client. Add `revertMessage()` and `unrevertMessage()` to SessionRepository interface. Add revert/unrevert buttons to message UI in ChatScreen. ChatViewModel methods for revert/unrevert. Unit tests for repository and viewmodel.
+
+### Phase 7: SDK Parity — Rich Content (Diffs + Parts + Tools)
+- [ ] T16: Implement File Diff Viewer (model, API, UI component) with TDD
+  - Acceptance Criteria: `FileDiff` model with file/before/after/additions/deletions. `GET /session/:id/diff` endpoint. Diff viewer UI component showing additions/deletions. Unit tests for parsing and diff computation.
+- [ ] T17: Implement Part Type Parity (reasoning, step, patch, agent, subtask) with TDD
+  - Acceptance Criteria: Add `ReasoningPart`, `StepStartPart`, `StepFinishPart`, `PatchPart`, `AgentPart`, `SubtaskPart` to Part model (or as discriminated union). SSEClient parses all part types. UI renders reasoning as collapsible thinking block, step indicators, patch summaries, agent references. Unit tests for each part type.
+- [ ] T18: Implement Enhanced Tool Display (union ToolState) with TDD
+  - Acceptance Criteria: `ToolState` as sealed class (Pending/Running/Completed/Error) with title, metadata, time, attachments. ToolResultCard updated to show running spinner, elapsed time, tool title. Unit tests for ToolState transitions.
+
+### Phase 8: SDK Parity — Advanced Features
+- [ ] T19: Implement Session Fork + Children navigation with TDD
+  - Acceptance Criteria: `POST /session/:id/fork` endpoint. Fork button on messages. Children list in session detail. Unit tests.
+- [ ] T20: Implement Todo List Display with TDD
+  - Acceptance Criteria: `Todo` model with content/status/priority/id. `GET /session/:id/todo` endpoint. `todo.updated` SSE event. Todo list UI in ChatScreen. Unit tests.
+- [ ] T21: Implement Slash Commands with TDD
+  - Acceptance Criteria: `POST /session/:id/command` endpoint. Command autocomplete UI in chat input. Unit tests.
+
 ---
 
 ## Final Verification Wave

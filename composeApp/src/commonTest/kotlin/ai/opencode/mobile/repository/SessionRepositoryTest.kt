@@ -116,6 +116,35 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun testFakeRepositoryRespondPermissionAllow() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.respondPermission("session-1", "perm-123", true)
+        assertTrue(result.isSuccess)
+        assertTrue(result.getOrNull()!!)
+    }
+
+    @Test
+    fun testFakeRepositoryRespondPermissionDeny() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.respondPermission("session-1", "perm-456", false)
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryRevertMessage() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.revertMessage("session-1", "msg-123")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun testFakeRepositoryUnrevertMessage() = runTest {
+        val repo = FakeTestRepository()
+        val result = repo.unrevertMessage("session-1")
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
     fun testFakeRepositoryAllMethodsFailWhenConfigured() = runTest {
         val repo = FakeTestRepository(shouldFail = true)
         assertTrue(repo.getSessions().isFailure)
@@ -128,6 +157,9 @@ class SessionRepositoryTest {
         assertTrue(repo.unshareSession("x").isFailure)
         assertTrue(repo.getProviders().isFailure)
         assertTrue(repo.getModes().isFailure)
+        assertTrue(repo.respondPermission("x", "p", true).isFailure)
+        assertTrue(repo.revertMessage("x", "m").isFailure)
+        assertTrue(repo.unrevertMessage("x").isFailure)
     }
 }
 
@@ -169,4 +201,13 @@ internal class FakeTestRepository(
 
     override suspend fun getModes(): Result<List<Mode>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(modes)
+
+    override suspend fun respondPermission(sessionId: String, permissionId: String, allow: Boolean): Result<Boolean> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(true)
+
+    override suspend fun revertMessage(sessionId: String, messageId: String, partId: String?): Result<Session> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
+
+    override suspend fun unrevertMessage(sessionId: String): Result<Session> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = sessionId))
 }

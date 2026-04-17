@@ -126,7 +126,25 @@ class SSEClient(
                     SSEEvent.FileEdited(file)
                 }
                 "permission.updated" -> {
-                    SSEEvent.PermissionUpdated
+                    val permission = json.decodeFromJsonElement<Permission>(properties)
+                    SSEEvent.PermissionUpdated(permission)
+                }
+                "session.status" -> {
+                    val sessionId = properties["sessionID"]?.jsonPrimitive?.content ?: ""
+                    val statusObj = properties["status"] as? JsonObject
+                    val statusType = statusObj?.get("type")?.jsonPrimitive?.content ?: "idle"
+                    val sessionStatus = when (statusType) {
+                        "idle" -> SessionStatus.Idle(sessionId)
+                        "busy" -> SessionStatus.Busy(sessionId)
+                        "retry" -> {
+                            val attempt = statusObj?.get("attempt")?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+                            val message = statusObj?.get("message")?.jsonPrimitive?.content ?: ""
+                            val next = statusObj?.get("next")?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
+                            SessionStatus.Retry(sessionId = sessionId, attempt = attempt, message = message, next = next)
+                        }
+                        else -> SessionStatus.Unknown(statusType)
+                    }
+                    SSEEvent.SessionStatusUpdated(sessionStatus)
                 }
                 else -> SSEEvent.Unknown(eventType)
             }
@@ -149,7 +167,8 @@ sealed class SSEEvent {
     data class SessionIdle(val sessionId: String) : SSEEvent()
     data class SessionError(val sessionId: String, val errorName: String) : SSEEvent()
     data class FileEdited(val file: String) : SSEEvent()
-    data object PermissionUpdated : SSEEvent()
+    data class PermissionUpdated(val permission: Permission) : SSEEvent()
+    data class SessionStatusUpdated(val status: SessionStatus) : SSEEvent()
     data class Error(val message: String) : SSEEvent()
     data class Unknown(val type: String) : SSEEvent()
 }
