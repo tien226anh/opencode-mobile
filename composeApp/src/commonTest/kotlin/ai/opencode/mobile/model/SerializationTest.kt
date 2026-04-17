@@ -12,7 +12,7 @@ import kotlin.test.assertFalse
 
 class SerializationTest {
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true }
 
     // --- Session tests ---
     @Test
@@ -233,6 +233,38 @@ class SerializationTest {
         assertEquals(1, decoded.parts.size)
         assertEquals("Hello", decoded.parts[0].text)
         assertEquals("text", decoded.parts[0].type)
+    }
+
+    @Test
+    fun testTextPartInputSerializesWithTypeField() {
+        val input = TextPartInput(text = "hi")
+        val jsonString = json.encodeToString(TextPartInput.serializer(), input)
+        // The server requires "type":"text" — verify it's actually in the JSON
+        assertTrue(jsonString.contains("\"type\""), "Missing 'type' field in JSON: $jsonString")
+        assertTrue(jsonString.contains("\"text\""), "Missing 'text' field in JSON: $jsonString")
+        // Should be: {"type":"text","text":"hi"}
+        assertTrue(
+            jsonString.contains("\"type\":\"text\""),
+            "Expected type=\"text\" but got: $jsonString"
+        )
+    }
+
+    @Test
+    fun testChatRequestJsonShapeMatchesServer() {
+        val request = ChatRequest(
+            model = ChatRequestModel(providerId = "ollama-cloud", modelId = "glm-5.1"),
+            agent = "summary",
+            parts = listOf(TextPartInput(text = "hi")),
+        )
+        val jsonString = json.encodeToString(ChatRequest.serializer(), request)
+        // Verify the exact shape the server expects:
+        // {"model":{"providerID":"ollama-cloud","modelID":"glm-5.1"},"agent":"summary","parts":[{"type":"text","text":"hi"}]}
+        assertTrue(jsonString.contains("\"model\""), "Missing 'model' field: $jsonString")
+        assertTrue(jsonString.contains("\"providerID\""), "Missing 'providerID' in model: $jsonString")
+        assertTrue(jsonString.contains("\"modelID\""), "Missing 'modelID' in model: $jsonString")
+        assertTrue(jsonString.contains("\"agent\""), "Missing 'agent' field: $jsonString")
+        assertTrue(jsonString.contains("\"parts\""), "Missing 'parts' field: $jsonString")
+        assertTrue(jsonString.contains("\"type\":\"text\""), "Part missing type discriminator: $jsonString")
     }
 
     // --- ServerConfig tests ---

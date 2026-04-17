@@ -27,7 +27,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class SSEClient(
     private val httpClient: HttpClient,
 ) {
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true }
 
     /**
      * Connect to the SSE event stream and emit events as they arrive.
