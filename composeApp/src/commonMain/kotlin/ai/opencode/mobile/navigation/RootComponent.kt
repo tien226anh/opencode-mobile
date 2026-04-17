@@ -105,7 +105,7 @@ class DefaultRootComponent(
                     DefaultProjectListComponent(
                         componentContext = componentContext,
                         sessionRepository = sessionRepository,
-                        onProjectSelected = { directory, name ->
+                        projectSelectedCallback = { directory, name ->
                             navigation.push(Config.SessionList(directory = directory, projectName = name))
                         },
                         onSettingsRequested = {
@@ -166,14 +166,14 @@ class DefaultRootComponent(
 class DefaultProjectListComponent(
     componentContext: ComponentContext,
     sessionRepository: SessionRepository,
-    private val onProjectSelected: (String, String) -> Unit,
+    private val projectSelectedCallback: (String, String) -> Unit,
     private val onSettingsRequested: () -> Unit,
 ) : ProjectListComponent, ComponentContext by componentContext {
 
     override val viewModel = ProjectListViewModel(repository = sessionRepository)
 
     override fun onProjectSelected(projectDirectory: String, projectName: String) {
-        onProjectSelected(projectDirectory, projectName)
+        projectSelectedCallback(projectDirectory, projectName)
     }
 
     override fun onSettingsClicked() {
