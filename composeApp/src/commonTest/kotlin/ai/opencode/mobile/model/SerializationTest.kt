@@ -220,14 +220,16 @@ class SerializationTest {
     @Test
     fun testChatRequestRoundTrip() {
         val request = ChatRequest(
-            modelId = "gpt-4",
-            providerId = "openai",
+            model = ChatRequestModel(
+                modelId = "gpt-4",
+                providerId = "openai",
+            ),
             parts = listOf(TextPartInput(text = "Hello")),
         )
         val jsonString = json.encodeToString(ChatRequest.serializer(), request)
         val decoded = json.decodeFromString(ChatRequest.serializer(), jsonString)
-        assertEquals("gpt-4", decoded.modelId)
-        assertEquals("openai", decoded.providerId)
+        assertEquals("gpt-4", decoded.model?.modelId)
+        assertEquals("openai", decoded.model?.providerId)
         assertEquals(1, decoded.parts.size)
         assertEquals("Hello", decoded.parts[0].text)
         assertEquals("text", decoded.parts[0].type)

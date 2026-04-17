@@ -35,13 +35,32 @@ data class RevertInfo(
 
 @Serializable
 data class ChatRequest(
-    @SerialName("modelID") val modelId: String,
-    @SerialName("providerID") val providerId: String,
-    val parts: List<TextPartInput>,
-    @SerialName("messageID") val messageId: String? = null,
+    /**
+     * The model to use — nested object with providerID + modelID.
+     * Matches the SDK's SessionPromptData.body.model field.
+     */
+    val model: ChatRequestModel? = null,
+    /**
+     * The agent/mode name (e.g. "code", "ask"). Called "agent" in current server versions,
+     * was "mode" in older versions. Server accepts either.
+     */
+    val agent: String? = null,
+    /** Legacy field name for older server versions. */
     val mode: String? = null,
+    /** The message parts (text, file, agent, subtask). */
+    val parts: List<TextPartInput>,
+    /** Optional message ID to resume/resend. */
+    @SerialName("messageID") val messageId: String? = null,
+    /** Optional system prompt override. */
     val system: String? = null,
+    /** Optional tool enable/disable map. */
     val tools: Map<String, Boolean>? = null,
+)
+
+@Serializable
+data class ChatRequestModel(
+    @SerialName("providerID") val providerId: String,
+    @SerialName("modelID") val modelId: String,
 )
 
 @Serializable
@@ -53,8 +72,7 @@ data class TextPartInput(
 @Serializable
 data class SessionInitRequest(
     @SerialName("messageID") val messageId: String,
-    @SerialName("modelID") val modelId: String,
-    @SerialName("providerID") val providerId: String,
+    val model: ChatRequestModel,
 )
 
 @Serializable
@@ -65,6 +83,5 @@ data class SessionRevertRequest(
 
 @Serializable
 data class SessionSummarizeRequest(
-    @SerialName("modelID") val modelId: String,
-    @SerialName("providerID") val providerId: String,
+    val model: ChatRequestModel,
 )

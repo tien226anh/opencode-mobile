@@ -49,10 +49,12 @@ class DefaultSessionRepository(
         mode: String?,
     ): Result<MessageInfo> {
         val request = ChatRequest(
-            modelId = modelId,
-            providerId = providerId,
+            model = ChatRequestModel(
+                providerId = providerId,
+                modelId = modelId,
+            ),
+            agent = mode,
             parts = listOf(TextPartInput(text = text)),
-            mode = mode,
         )
         return apiClient.sendChatMessage(sessionId, request)
     }
