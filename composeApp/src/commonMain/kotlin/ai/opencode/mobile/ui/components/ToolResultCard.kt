@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,17 +32,29 @@ fun ToolResultCard(
     part: Part,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val toolName = part.tool ?: "unknown"
+    var expanded by remember { mutableStateOf(part.state?.status == "running") }
+    val toolName = part.state?.title ?: part.tool ?: "unknown"
     val status = part.state?.status ?: ""
     val hasError = part.state?.error != null
     val output = part.state?.output ?: ""
     val error = part.state?.error
     val input = part.state?.input ?: ""
+    val toolTime = part.state?.time
+
+    // Calculate duration if time is available
+    val durationText = if (toolTime != null && toolTime.end > 0 && toolTime.start > 0) {
+        val seconds = (toolTime.end - toolTime.start) / 1000.0
+        if (seconds < 60) "${(seconds * 10).toInt() / 10.0}s" else "${(seconds / 60).toInt()}m"
+    } else null
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (hasError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+        color = when {
+            hasError -> MaterialTheme.colorScheme.errorContainer
+            status == "running" -> MaterialTheme.colorScheme.tertiaryContainer
+            status == "completed" -> MaterialTheme.colorScheme.surfaceVariant
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
         tonalElevation = 1.dp,
         modifier = modifier.fillMaxWidth().animateContentSize(),
     ) {
@@ -50,23 +64,41 @@ fun ToolResultCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // Status icon
+                when (status) {
+                    "completed" -> Text("\u2705", style = MaterialTheme.typography.labelMedium)
+                    "error" -> Text("\u274C", style = MaterialTheme.typography.labelMedium)
+                    "running" -> CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    "pending" -> Text("\u23F3", style = MaterialTheme.typography.labelMedium)
+                    else -> Text("\u25B6", style = MaterialTheme.typography.labelMedium)
+                }
+                // Tool name
                 Text(
-                    text = if (expanded) "\u25BC" else "\u25B6",
+                    text = toolName,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (hasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = when (status) {
-                        "completed" -> "\u2705 $toolName"
-                        "error" -> "\u274C $toolName"
-                        "running" -> "\u26A1 $toolName"
-                        else -> "Tool: $toolName"
+                    color = when {
+                        hasError -> MaterialTheme.colorScheme.error
+                        status == "running" -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
                     },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (hasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                // Duration
+                if (durationText != null) {
+                    Text(
+                        text = durationText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
+            // Input display (expandable)
             if (input.isNotBlank() && input != "{}") {
                 Spacer(modifier = Modifier.height(4.dp))
                 val displayInput = if (expanded) input else input.take(80)
@@ -79,6 +111,7 @@ fun ToolResultCard(
                 )
             }
 
+            // Output/error display
             if (output.isNotBlank() || error != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 if (error != null) {
