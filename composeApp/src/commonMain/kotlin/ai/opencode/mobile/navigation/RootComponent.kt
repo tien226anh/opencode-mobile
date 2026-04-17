@@ -148,14 +148,7 @@ class DefaultChatComponent(
         } else {
             ""
         },
-    ).also {
-        if (config.modelId.isNotBlank() || config.providerId.isNotBlank()) {
-            it.setModel(
-                modelId = config.modelId.ifBlank { "default" },
-                providerId = config.providerId.ifBlank { "default" },
-            )
-        }
-    }
+    )
 }
 
 class DefaultSettingsComponent(

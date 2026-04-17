@@ -24,7 +24,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -73,6 +76,8 @@ fun ChatScreen(
 
     LaunchedEffect(Unit) {
         component.viewModel.loadMessages()
+        component.viewModel.loadProviders()
+        component.viewModel.loadModes()
     }
 
     LaunchedEffect(state.messages.size) {
@@ -100,7 +105,11 @@ fun ChatScreen(
                         )
                         if (state.currentModelId.isNotBlank()) {
                             Text(
-                                text = state.currentModelId,
+                                text = buildString {
+                                    append(state.currentProviderId)
+                                    if (state.currentModelId.isNotBlank()) append(" / ${state.currentModelId}")
+                                    if (state.currentModeName.isNotBlank()) append(" [${state.currentModeName}]")
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -117,18 +126,29 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            ChatInputBar(
-                value = inputText,
-                onValueChange = { inputText = it },
-                onSend = {
-                    if (inputText.isNotBlank()) {
-                        component.viewModel.sendMessage(inputText)
-                        inputText = ""
-                    }
-                },
-                onAbort = { component.viewModel.abortSession() },
-                isSending = state.isSending,
-            )
+            Column {
+                // Provider/Model/Mode selection row — only show when providers are loaded
+                if (state.providers.isNotEmpty() || state.modes.isNotEmpty()) {
+                    ProviderModelModeBar(
+                        state = state,
+                        onProviderSelected = { component.viewModel.updateProvider(it) },
+                        onModelSelected = { component.viewModel.updateModel(it) },
+                        onModeSelected = { component.viewModel.updateMode(it) },
+                    )
+                }
+                ChatInputBar(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    onSend = {
+                        if (inputText.isNotBlank()) {
+                            component.viewModel.sendMessage(inputText)
+                            inputText = ""
+                        }
+                    },
+                    onAbort = { component.viewModel.abortSession() },
+                    isSending = state.isSending,
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
@@ -164,6 +184,134 @@ fun ChatScreen(
                     if (state.isSending) {
                         item {
                             ThinkingIndicator()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProviderModelModeBar(
+    state: ai.opencode.mobile.viewmodel.ChatState,
+    onProviderSelected: (String) -> Unit,
+    onModelSelected: (String) -> Unit,
+    onModeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(tonalElevation = 2.dp, modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Provider dropdown
+            if (state.providers.isNotEmpty()) {
+                var providerExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = providerExpanded,
+                    onExpandedChange = { providerExpanded = !providerExpanded },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    val providerName = state.selectedProvider?.name?.ifEmpty { state.selectedProviderId } ?: state.selectedProviderId
+                    OutlinedTextField(
+                        value = providerName.ifEmpty { "Provider" },
+                        onValueChange = {},
+                        readOnly = true,
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    ExposedDropdownMenu(
+                        expanded = providerExpanded,
+                        onDismissRequest = { providerExpanded = false },
+                    ) {
+                        state.providers.forEach { provider ->
+                            DropdownMenuItem(
+                                text = { Text(provider.name.ifEmpty { provider.id }, style = MaterialTheme.typography.bodySmall) },
+                                onClick = {
+                                    onProviderSelected(provider.id)
+                                    providerExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Model dropdown (cascading from selected provider)
+            if (state.selectedProviderModels.isNotEmpty()) {
+                var modelExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = modelExpanded,
+                    onExpandedChange = { modelExpanded = !modelExpanded },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    val modelName = state.selectedProviderModels.find { it.id == state.selectedModelId }?.name?.ifEmpty { state.selectedModelId } ?: state.selectedModelId
+                    OutlinedTextField(
+                        value = modelName.ifEmpty { "Model" },
+                        onValueChange = {},
+                        readOnly = true,
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modelExpanded,
+                        onDismissRequest = { modelExpanded = false },
+                    ) {
+                        state.selectedProviderModels.forEach { model ->
+                            DropdownMenuItem(
+                                text = { Text(model.name.ifEmpty { model.id }, style = MaterialTheme.typography.bodySmall) },
+                                onClick = {
+                                    onModelSelected(model.id)
+                                    modelExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Mode dropdown
+            if (state.modes.isNotEmpty()) {
+                var modeExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = modeExpanded,
+                    onExpandedChange = { modeExpanded = !modeExpanded },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    OutlinedTextField(
+                        value = state.selectedModeName.ifEmpty { "Mode" },
+                        onValueChange = {},
+                        readOnly = true,
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modeExpanded,
+                        onDismissRequest = { modeExpanded = false },
+                    ) {
+                        state.modes.forEach { mode ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(mode.name, style = MaterialTheme.typography.bodySmall)
+                                        mode.description?.let {
+                                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    onModeSelected(mode.name)
+                                    modeExpanded = false
+                                },
+                            )
                         }
                     }
                 }
