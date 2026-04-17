@@ -169,13 +169,21 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            // --- Save ---
+            // --- Save & Connect ---
             Button(
-                onClick = { component.saveAndPersist() },
+                onClick = { component.saveAndGoBack() },
                 enabled = !state.isTesting,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (state.isSaved) "Saved" else "Save Settings")
+                Text(if (state.isConnectionSuccessful == true) "Save & Connect" else "Save Settings")
+            }
+
+            if (state.isSaved) {
+                Text(
+                    text = "\u2713 Settings saved. Tap \"Save & Connect\" to return to sessions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
 
             HorizontalDivider()

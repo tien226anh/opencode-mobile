@@ -45,6 +45,8 @@ interface ChatComponent {
 interface SettingsComponent {
     val viewModel: SettingsViewModel
     fun saveAndPersist()
+    /** Save settings, persist them, and navigate back to session list (which auto-reloads). */
+    fun saveAndGoBack()
 }
 
 class DefaultRootComponent(
@@ -53,18 +55,25 @@ class DefaultRootComponent(
     private val settingsStorage: SettingsStorage,
 ) : RootComponent, ComponentContext by componentContext {
 
-    private val serverConfig: ServerConfig = settingsStorage.load()
-
     private val sessionRepository: SessionRepository = DefaultSessionRepository(apiClient)
 
     private val sseClient: SSEClient = SSEClient(OpenCodeApiClient.createHttpClient(apiClient.engine))
 
     private val navigation = StackNavigation<Config>()
 
+    /**
+     * Decide initial screen: if user has never connected (no saved server), go to Settings first.
+     * Otherwise, go to SessionList (which auto-loads sessions).
+     */
+    private val initialConfig: Config = run {
+        val config = settingsStorage.load()
+        if (config.isConnected) Config.SessionList else Config.Settings
+    }
+
     private val _stack = childStack(
         source = navigation,
         serializer = Config.serializer(),
-        initialConfiguration = Config.SessionList,
+        initialConfiguration = initialConfig,
         key = "RootStack",
         handleBackButton = true,
         childFactory = { config, context -> child(config, context) },
@@ -72,11 +81,17 @@ class DefaultRootComponent(
 
     override val stack: Value<ChildStack<Config, RootComponent.Child>> = _stack
 
+    /**
+     * Keep a reference to the current SessionListComponent so we can
+     * trigger a reload after saving settings.
+     */
+    private var currentSessionListComponent: DefaultSessionListComponent? = null
+
     @OptIn(DelicateDecomposeApi::class)
     private fun child(config: Config, componentContext: ComponentContext): RootComponent.Child =
         when (config) {
-            is Config.SessionList -> RootComponent.Child.SessionListChild(
-                DefaultSessionListComponent(
+            is Config.SessionList -> {
+                val component = DefaultSessionListComponent(
                     componentContext = componentContext,
                     sessionRepository = sessionRepository,
                     onSessionSelected = { id, title ->
@@ -85,15 +100,18 @@ class DefaultRootComponent(
                     onSettingsRequested = {
                         navigation.push(Config.Settings)
                     },
-                ),
-            )
+                )
+                currentSessionListComponent = component
+                RootComponent.Child.SessionListChild(component)
+            }
             is Config.Chat -> RootComponent.Child.ChatChild(
                 DefaultChatComponent(
                     componentContext = componentContext,
                     sessionId = config.sessionId,
                     sessionTitle = config.sessionTitle,
                     sessionRepository = sessionRepository,
-                    config = serverConfig,
+                    // Always read fresh config from storage — never cache a stale copy
+                    config = settingsStorage.load(),
                     sseClient = sseClient,
                 ),
             )
@@ -102,6 +120,11 @@ class DefaultRootComponent(
                     componentContext = componentContext,
                     apiClient = apiClient,
                     settingsStorage = settingsStorage,
+                    onSaved = {
+                        // After saving: pop back to session list and reload
+                        navigation.pop()
+                        currentSessionListComponent?.reloadSessions()
+                    },
                 ),
             )
         }
@@ -126,6 +149,11 @@ class DefaultSessionListComponent(
 
     override fun onSettingsClicked() {
         onSettingsRequested()
+    }
+
+    /** Reload sessions — called after settings are saved. */
+    fun reloadSessions() {
+        viewModel.loadSessions()
     }
 }
 
@@ -155,6 +183,7 @@ class DefaultSettingsComponent(
     componentContext: ComponentContext,
     apiClient: OpenCodeApiClient,
     settingsStorage: SettingsStorage,
+    private val onSaved: () -> Unit = {},
 ) : SettingsComponent, ComponentContext by componentContext {
 
     private val storage = settingsStorage
@@ -167,5 +196,11 @@ class DefaultSettingsComponent(
     override fun saveAndPersist() {
         val config = viewModel.saveSettings()
         storage.save(config)
+    }
+
+    override fun saveAndGoBack() {
+        val config = viewModel.saveSettings()
+        storage.save(config)
+        onSaved()
     }
 }
