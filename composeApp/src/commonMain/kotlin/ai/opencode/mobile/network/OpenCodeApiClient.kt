@@ -1,6 +1,7 @@
 package ai.opencode.mobile.network
 
 import ai.opencode.mobile.model.*
+import ai.opencode.mobile.platform.normalizeServerUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
@@ -22,8 +23,8 @@ class OpenCodeApiClient(
     /** The HTTP engine used by this client, exposed so SSEClient can share it. */
     val engine: HttpClientEngine get() = httpClient.engine
     fun updateConfig(baseUrl: String, username: String = "", password: String = "") {
-        // Normalize: strip trailing slashes
-        this.baseUrl = baseUrl.trimEnd('/')
+        // Normalize: strip trailing slashes, remap localhost for Android emulator
+        this.baseUrl = normalizeServerUrl(baseUrl.trimEnd('/'))
         this.basicAuth = if (username.isNotEmpty() || password.isNotEmpty()) {
             encodeCredentials(username, password)
         } else {

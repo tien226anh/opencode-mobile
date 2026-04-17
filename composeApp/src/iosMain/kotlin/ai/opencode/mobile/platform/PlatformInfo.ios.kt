@@ -11,3 +11,6 @@ actual class PlatformInfo actual constructor() {
 actual fun getPlatformInfo(): PlatformInfo = PlatformInfo()
 
 actual fun currentTimeSeconds(): Long = NSDate().timeIntervalSince1970.toLong()
+
+/** On iOS, localhost/127.0.0.1 works fine for the simulator (maps to host). */
+actual fun normalizeServerUrl(url: String): String = url

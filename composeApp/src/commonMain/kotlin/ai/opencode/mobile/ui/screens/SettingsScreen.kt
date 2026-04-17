@@ -85,12 +85,14 @@ fun SettingsScreen(
                 value = state.serverUrl,
                 onValueChange = { component.viewModel.updateServerUrl(it) },
                 label = { Text("Server URL") },
-                placeholder = { Text("https://xxx.trycloudflare.com or http://localhost:54321") },
+                placeholder = { Text("http://localhost:54321 or https://xxx.trycloudflare.com") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
             Text(
-                text = "Enter the full URL including https://. For Cloudflare tunnels, use the https://xxx-xxx.trycloudflare.com URL from the tunnel output.",
+                text = "Enter the full URL including https://. For Cloudflare tunnels, use the https://xxx-xxx.trycloudflare.com URL from the tunnel output.\n\n" +
+                    "Tip: On Android emulator, localhost is auto-remapped to 10.0.2.2 (host machine). " +
+                    "On a physical device, use your computer's LAN IP (e.g. http://192.168.1.x:54321).",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
