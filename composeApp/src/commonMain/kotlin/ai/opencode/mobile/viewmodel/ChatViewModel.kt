@@ -1,5 +1,9 @@
 package ai.opencode.mobile.viewmodel
 
+import ai.opencode.mobile.model.Mode
+import ai.opencode.mobile.model.ModelInfo
+import ai.opencode.mobile.model.Provider
+import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.MessageInfo
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.MessageTime
@@ -23,8 +27,21 @@ data class ChatState(
     val error: String? = null,
     val currentModelId: String = "",
     val currentProviderId: String = "",
+    val currentModeName: String = "",
     val isStreaming: Boolean = false,
-)
+    // Provider & model selection
+    val providers: List<Provider> = emptyList(),
+    val modes: List<Mode> = emptyList(),
+    val selectedProviderId: String = "",
+    val selectedModelId: String = "",
+    val selectedModeName: String = "",
+    val isLoadingProviders: Boolean = false,
+    val isLoadingModes: Boolean = false,
+) {
+    val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
+    val selectedProviderModels: List<ModelInfo> get() =
+        selectedProvider?.models?.values?.toList() ?: emptyList()
+}
 
 class ChatViewModel(
     private val sessionRepository: SessionRepository,
@@ -62,10 +79,97 @@ class ChatViewModel(
         }
     }
 
+    fun loadProviders() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoadingProviders = true)
+            sessionRepository.getProviders().fold(
+                onSuccess = { response ->
+                    val currentState = _state.value
+                    // Auto-select first provider and its default model if none selected
+                    val autoProviderId = currentState.selectedProviderId.ifBlank {
+                        response.providers.firstOrNull()?.id ?: ""
+                    }
+                    val autoModelId = currentState.selectedModelId.ifBlank {
+                        response.default[autoProviderId] ?: ""
+                    }
+                    _state.value = currentState.copy(
+                        providers = response.providers,
+                        selectedProviderId = autoProviderId,
+                        selectedModelId = autoModelId,
+                        isLoadingProviders = false,
+                    )
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        isLoadingProviders = false,
+                        error = "Failed to load providers: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    fun loadModes() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoadingModes = true)
+            sessionRepository.getModes().fold(
+                onSuccess = { modes ->
+                    val currentMode = _state.value.selectedModeName
+                    _state.value = _state.value.copy(
+                        modes = modes,
+                        selectedModeName = currentMode.ifBlank { modes.firstOrNull()?.name ?: "" },
+                        isLoadingModes = false,
+                    )
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        isLoadingModes = false,
+                        error = "Failed to load modes: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    fun updateProvider(providerId: String) {
+        _state.value = _state.value.copy(
+            selectedProviderId = providerId,
+            selectedModelId = "",
+            currentModelId = "",
+            currentProviderId = providerId,
+        )
+        // Auto-select default model for this provider
+        val provider = _state.value.providers.find { it.id == providerId }
+        if (provider != null) {
+            val defaultModel = provider.models.values.firstOrNull()
+            if (defaultModel != null) {
+                _state.value = _state.value.copy(
+                    selectedModelId = defaultModel.id,
+                    currentModelId = defaultModel.id,
+                )
+            }
+        }
+    }
+
+    fun updateModel(modelId: String) {
+        _state.value = _state.value.copy(
+            selectedModelId = modelId,
+            currentModelId = modelId,
+        )
+    }
+
+    fun updateMode(modeName: String) {
+        _state.value = _state.value.copy(
+            selectedModeName = modeName,
+            currentModeName = modeName,
+        )
+    }
+
     fun sendMessage(text: String) {
         if (text.isBlank()) return
-        val modelId = _state.value.currentModelId.ifBlank { "default" }
-        val providerId = _state.value.currentProviderId.ifBlank { "default" }
+        val modelId = _state.value.currentModelId.ifBlank { _state.value.selectedModelId.ifBlank { "default" } }
+        val providerId = _state.value.currentProviderId.ifBlank { _state.value.selectedProviderId.ifBlank { "default" } }
+        val modeName = _state.value.selectedModeName.ifBlank { _state.value.currentModeName }
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSending = true, isStreaming = true, error = null)
@@ -84,7 +188,7 @@ class ChatViewModel(
                 messages = _state.value.messages + optimisticMessage,
             )
 
-            val result = sessionRepository.sendMessage(sessionId, text, modelId, providerId)
+            val result = sessionRepository.sendMessage(sessionId, text, modelId, providerId, modeName.ifBlank { null })
             result.fold(
                 onSuccess = {
                     _state.value = _state.value.copy(isSending = false)
@@ -207,13 +311,6 @@ class ChatViewModel(
             _state.value = _state.value.copy(isStreaming = false)
             sseJob?.cancel()
         }
-    }
-
-    fun setModel(modelId: String, providerId: String) {
-        _state.value = _state.value.copy(
-            currentModelId = modelId,
-            currentProviderId = providerId,
-        )
     }
 
     fun clearError() {

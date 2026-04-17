@@ -140,7 +140,7 @@ class FakeSessionListTestRepository : SessionRepository {
     override suspend fun createSession(): Result<Session> = createSessionResult
     override suspend fun deleteSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
     override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> = Result.success(emptyList())
-    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo> = Result.failure(Exception("Not implemented"))
+    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String?): Result<MessageInfo> = Result.failure(Exception("Not implemented"))
     override suspend fun abortSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
     override suspend fun shareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
     override suspend fun unshareSession(sessionId: String): Result<Session> = Result.failure(Exception("Not implemented"))
