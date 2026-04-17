@@ -62,7 +62,7 @@ class SessionRepositoryTest {
     @Test
     fun testFakeRepositorySendMessageSuccess() = runTest {
         val repo = FakeTestRepository()
-        val result = repo.sendMessage("s1", "hello", "model", "provider")
+        val result = repo.sendMessage("s1", "hello", "model", "provider", null)
         assertTrue(result.isSuccess)
     }
 
@@ -122,7 +122,7 @@ class SessionRepositoryTest {
         assertTrue(repo.createSession().isFailure)
         assertTrue(repo.deleteSession("x").isFailure)
         assertTrue(repo.getMessages("x").isFailure)
-        assertTrue(repo.sendMessage("x", "t", "m", "p").isFailure)
+        assertTrue(repo.sendMessage("x", "t", "m", "p", null).isFailure)
         assertTrue(repo.abortSession("x").isFailure)
         assertTrue(repo.shareSession("x").isFailure)
         assertTrue(repo.unshareSession("x").isFailure)
@@ -152,7 +152,7 @@ internal class FakeTestRepository(
     override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(messages)
 
-    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo> =
+    override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String?): Result<MessageInfo> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(MessageInfo(id = "m-new", role = "assistant", sessionId = sessionId))
 
     override suspend fun abortSession(sessionId: String): Result<Boolean> =

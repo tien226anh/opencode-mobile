@@ -81,8 +81,30 @@ class OpenCodeApiClient(
         return response
     }
 
-    //region App endpoints (matching official SDK)
+    //region App endpoints (matching official SDK, with fallbacks for newer server versions)
     suspend fun getAppInfo(): Result<AppInfo> = runCatching {
+        // Try new endpoint first (OpenCode v1.4+ uses /global/health)
+        val healthResponse = httpClient.get("$baseUrl/global/health") { addAuthHeader(this) }
+        
+        if (healthResponse.status.value == 401) {
+            throw IllegalStateException(
+                "Authentication failed (401 Unauthorized).\n\n" +
+                "The server requires authentication. Please check:\n" +
+                "• Username: must match OPENCODE_SERVER_USERNAME (default: \"opencode\")\n" +
+                "• Password: must match OPENCODE_SERVER_PASSWORD set on the server\n\n" +
+                "If you don't know the credentials, contact the server administrator."
+            )
+        }
+
+        val healthContentType = healthResponse.contentType()
+        if (healthContentType != null &&
+            (healthContentType.match(ContentType.Application.Json) || healthContentType.match(ContentType.Text.Plain))) {
+            // New server: /global/health returns { healthy: true, version: "..." }
+            // Return a minimal AppInfo — the important thing is the connection works
+            return Result.success(AppInfo())
+        }
+
+        // Fallback: try old endpoint /app (OpenCode v1.3 and earlier)
         var response = httpClient.get("$baseUrl/app") { addAuthHeader(this) }
         
         // Check for 401 Unauthorized specifically - means auth is required but failed
@@ -235,10 +257,25 @@ class OpenCodeApiClient(
         response.body<ProvidersResponse>()
     }
 
+    /**
+     * Get available modes/agents.
+     * In newer OpenCode versions, /mode was renamed to /agent.
+     * Try /agent first, fall back to /mode for older versions.
+     */
     suspend fun getModes(): Result<List<Mode>> = runCatching {
-        val response = httpClient.get("$baseUrl/mode") { addAuthHeader(this) }
-        validateJsonResponse(response)
-        response.body<List<Mode>>()
+        // Try new endpoint first (OpenCode v1.4+)
+        val agentResponse = httpClient.get("$baseUrl/agent") { addAuthHeader(this) }
+        val agentContentType = agentResponse.contentType()
+
+        if (agentContentType != null &&
+            (agentContentType.match(ContentType.Application.Json) || agentContentType.match(ContentType.Text.Plain))) {
+            return Result.success(agentResponse.body<List<Mode>>())
+        }
+
+        // Fallback to old endpoint (OpenCode v1.3 and earlier)
+        val modeResponse = httpClient.get("$baseUrl/mode") { addAuthHeader(this) }
+        validateJsonResponse(modeResponse)
+        modeResponse.body<List<Mode>>()
     }
     //endregion
 

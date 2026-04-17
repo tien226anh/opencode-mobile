@@ -8,7 +8,7 @@ interface SessionRepository {
     suspend fun createSession(): Result<Session>
     suspend fun deleteSession(sessionId: String): Result<Boolean>
     suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>>
-    suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String): Result<MessageInfo>
+    suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String? = null): Result<MessageInfo>
     suspend fun abortSession(sessionId: String): Result<Boolean>
     suspend fun shareSession(sessionId: String): Result<Session>
     suspend fun unshareSession(sessionId: String): Result<Session>
@@ -37,11 +37,13 @@ class DefaultSessionRepository(
         text: String,
         modelId: String,
         providerId: String,
+        mode: String?,
     ): Result<MessageInfo> {
         val request = ChatRequest(
             modelId = modelId,
             providerId = providerId,
             parts = listOf(TextPartInput(text = text)),
+            mode = mode,
         )
         return apiClient.sendChatMessage(sessionId, request)
     }
