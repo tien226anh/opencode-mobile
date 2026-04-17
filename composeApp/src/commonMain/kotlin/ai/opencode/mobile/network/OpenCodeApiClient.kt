@@ -19,8 +19,11 @@ class OpenCodeApiClient(
     private var baseUrl: String,
     private var basicAuth: String = "",
 ) {
+    /** The HTTP engine used by this client, exposed so SSEClient can share it. */
+    val engine: HttpClientEngine get() = httpClient.engine
     fun updateConfig(baseUrl: String, username: String = "", password: String = "") {
-        this.baseUrl = baseUrl
+        // Normalize: strip trailing slashes
+        this.baseUrl = baseUrl.trimEnd('/')
         this.basicAuth = if (username.isNotEmpty() || password.isNotEmpty()) {
             encodeCredentials(username, password)
         } else {
@@ -79,7 +82,8 @@ class OpenCodeApiClient(
 
     //region App endpoints (matching official SDK)
     suspend fun getAppInfo(): Result<AppInfo> = runCatching {
-        val response = httpClient.get("$baseUrl/app") { addAuthHeader(this) }
+        var response = httpClient.get("$baseUrl/app") { addAuthHeader(this) }
+        
         // Check for 401 Unauthorized specifically - means auth is required but failed
         if (response.status.value == 401) {
             throw IllegalStateException(
@@ -90,6 +94,45 @@ class OpenCodeApiClient(
                 "If you don't know the credentials, contact the server administrator."
             )
         }
+        
+        // If /app returns HTML (web console), try /session as fallback health check
+        val contentType = response.contentType()
+        if (contentType != null && contentType.match(ContentType.Text.Html)) {
+            // The server has a web UI that's catching /app before the API
+            // Try listing sessions as a fallback health check
+            val sessionResponse = httpClient.get("$baseUrl/session") { addAuthHeader(this) }
+            if (sessionResponse.status.value == 401) {
+                throw IllegalStateException(
+                    "Authentication failed (401 Unauthorized).\n\n" +
+                    "The server requires authentication. Please check:\n" +
+                    "• Username: must match OPENCODE_SERVER_USERNAME (default: \"opencode\")\n" +
+                    "• Password: must match OPENCODE_SERVER_PASSWORD set on the server\n\n" +
+                    "If you don't know the credentials, contact the server administrator."
+                )
+            }
+            val sessionContentType = sessionResponse.contentType()
+            if (sessionContentType != null && 
+                (sessionContentType.match(ContentType.Application.Json) || sessionContentType.match(ContentType.Text.Plain))) {
+                // Server is reachable and returns JSON — but /app is not an API endpoint
+                // This is likely an older version or custom deployment
+                return Result.success(AppInfo())
+            }
+            // Both /app and /session return HTML — the URL might be wrong
+            throw IllegalStateException(
+                "Server returned HTML instead of JSON for both /app and /session.\n\n" +
+                "URL tried: $baseUrl\n\n" +
+                "This usually means:\n" +
+                "• The URL points to the web console, not the API server\n" +
+                "  (OpenCode API and web console share the same URL - this should work)\n" +
+                "• A Cloudflare tunnel is serving an interstitial page\n" +
+                "• The OpenCode server is not running at this URL\n" +
+                "• Authentication failed — check your username and password\n\n" +
+                "To verify, open this URL in a browser:\n" +
+                "$baseUrl/session\n\n" +
+                "If you see JSON, the server is working. If you see HTML, check the URL."
+            )
+        }
+        
         validateJsonResponse(response)
         response.body<AppInfo>()
     }

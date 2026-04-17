@@ -145,7 +145,29 @@ class ChatViewModelTest {
         assertTrue(state.messages.isEmpty())
         assertFalse(state.isLoading)
         assertFalse(state.isSending)
+        assertFalse(state.isStreaming)
         assertNull(state.error)
+    }
+
+    @Test
+    fun testInitialStreamingState() {
+        assertFalse(viewModel.state.value.isStreaming)
+    }
+
+    @Test
+    fun testStopStreaming() {
+        viewModel.stopStreaming()
+        assertFalse(viewModel.state.value.isStreaming)
+    }
+
+    @Test
+    fun testAbortSessionStopsStreaming() {
+        fakeRepository.abortResult = Result.success(true)
+
+        viewModel.abortSession()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isStreaming)
     }
 }
 

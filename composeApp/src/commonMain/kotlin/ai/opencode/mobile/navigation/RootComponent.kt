@@ -2,6 +2,7 @@ package ai.opencode.mobile.navigation
 
 import ai.opencode.mobile.model.ServerConfig
 import ai.opencode.mobile.network.OpenCodeApiClient
+import ai.opencode.mobile.network.SSEClient
 import ai.opencode.mobile.repository.DefaultSessionRepository
 import ai.opencode.mobile.repository.SessionRepository
 import ai.opencode.mobile.repository.SettingsStorage
@@ -56,6 +57,8 @@ class DefaultRootComponent(
 
     private val sessionRepository: SessionRepository = DefaultSessionRepository(apiClient)
 
+    private val sseClient: SSEClient = SSEClient(OpenCodeApiClient.createHttpClient(apiClient.engine))
+
     private val navigation = StackNavigation<Config>()
 
     private val _stack = childStack(
@@ -91,6 +94,7 @@ class DefaultRootComponent(
                     sessionTitle = config.sessionTitle,
                     sessionRepository = sessionRepository,
                     config = serverConfig,
+                    sseClient = sseClient,
                 ),
             )
             is Config.Settings -> RootComponent.Child.SettingsChild(
@@ -131,9 +135,20 @@ class DefaultChatComponent(
     override val sessionTitle: String,
     sessionRepository: SessionRepository,
     config: ServerConfig = ServerConfig(),
+    sseClient: SSEClient? = null,
 ) : ChatComponent, ComponentContext by componentContext {
 
-    override val viewModel = ChatViewModel(sessionRepository, sessionId).also {
+    override val viewModel = ChatViewModel(
+        sessionRepository = sessionRepository,
+        sessionId = sessionId,
+        sseClient = sseClient,
+        baseUrl = config.serverUrl.ifBlank { OpenCodeApiClient.DEFAULT_URL },
+        basicAuth = if (config.username.isNotEmpty() || config.password.isNotEmpty()) {
+            OpenCodeApiClient.encodeCredentials(config.username, config.password)
+        } else {
+            ""
+        },
+    ).also {
         if (config.modelId.isNotBlank() || config.providerId.isNotBlank()) {
             it.setModel(
                 modelId = config.modelId.ifBlank { "default" },
