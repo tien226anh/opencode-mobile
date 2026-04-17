@@ -4,8 +4,10 @@ import ai.opencode.mobile.model.*
 import ai.opencode.mobile.network.OpenCodeApiClient
 
 interface SessionRepository {
-    suspend fun getSessions(): Result<List<Session>>
-    suspend fun createSession(): Result<Session>
+    suspend fun getProjects(): Result<List<Project>>
+    suspend fun getCurrentProject(): Result<Project>
+    suspend fun getSessions(directory: String? = null): Result<List<Session>>
+    suspend fun createSession(directory: String? = null): Result<Session>
     suspend fun deleteSession(sessionId: String): Result<Boolean>
     suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>>
     suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String? = null): Result<MessageInfo>
@@ -29,11 +31,17 @@ class DefaultSessionRepository(
     private val apiClient: OpenCodeApiClient,
 ) : SessionRepository {
 
-    override suspend fun getSessions(): Result<List<Session>> =
-        apiClient.listSessions()
+    override suspend fun getProjects(): Result<List<Project>> =
+        apiClient.listProjects()
 
-    override suspend fun createSession(): Result<Session> =
-        apiClient.createSession()
+    override suspend fun getCurrentProject(): Result<Project> =
+        apiClient.getCurrentProject()
+
+    override suspend fun getSessions(directory: String?): Result<List<Session>> =
+        apiClient.listSessions(directory)
+
+    override suspend fun createSession(directory: String?): Result<Session> =
+        apiClient.createSession(directory)
 
     override suspend fun deleteSession(sessionId: String): Result<Boolean> =
         apiClient.deleteSession(sessionId)

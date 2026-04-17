@@ -25,10 +25,13 @@ class SessionListViewModel(
     private val _state = MutableStateFlow(SessionListState())
     val state: StateFlow<SessionListState> = _state.asStateFlow()
 
+    /** The directory filter — when set, only sessions for this project directory are shown. */
+    var directoryFilter: String? = null
+
     fun loadSessions() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-            val result = sessionRepository.getSessions()
+            val result = sessionRepository.getSessions(directoryFilter)
             result.fold(
                 onSuccess = { sessions ->
                     _state.value = SessionListState(
@@ -49,7 +52,7 @@ class SessionListViewModel(
     fun refreshSessions() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true, error = null)
-            val result = sessionRepository.getSessions()
+            val result = sessionRepository.getSessions(directoryFilter)
             result.fold(
                 onSuccess = { sessions ->
                     _state.value = _state.value.copy(
@@ -69,7 +72,7 @@ class SessionListViewModel(
 
     fun createSession(onCreated: (Session) -> Unit) {
         viewModelScope.launch {
-            val result = sessionRepository.createSession()
+            val result = sessionRepository.createSession(directoryFilter)
             result.fold(
                 onSuccess = { session ->
                     _state.value = _state.value.copy(

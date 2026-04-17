@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ai.opencode.mobile.model.Part
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 
 @Composable
 fun ToolResultCard(
@@ -38,7 +40,13 @@ fun ToolResultCard(
     val hasError = part.state?.error != null
     val output = part.state?.output ?: ""
     val error = part.state?.error
-    val input = part.state?.input ?: ""
+    // Input can be a JsonElement (object or string) — extract as text for display
+    val input = try {
+        when (val inputEl = part.state?.input) {
+            is JsonPrimitive -> inputEl.content
+            else -> inputEl?.toString() ?: ""
+        }
+    } catch (_: Exception) { "" }
     val toolTime = part.state?.time
 
     // Calculate duration if time is available

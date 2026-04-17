@@ -7,7 +7,7 @@ import ai.opencode.mobile.model.ModelInfo
 import ai.opencode.mobile.model.ModeModel
 import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Permission
-import ai.opencode.mobile.model.PermissionMetadata
+import ai.opencode.mobile.model.Project
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.SessionDiffResponse
@@ -463,7 +463,9 @@ class ChatViewModelTest {
             sessionId = "test-session",
             messageId = "msg-456",
             title = "Run bash command",
-            metadata = PermissionMetadata(command = "ls -la"),
+            metadata = kotlinx.serialization.json.buildJsonObject {
+                put("command", kotlinx.serialization.json.JsonPrimitive("ls -la"))
+            },
         )
         viewModel._state.value = viewModel.state.value.copy(pendingPermission = permission)
 
@@ -538,7 +540,9 @@ class ChatViewModelTest {
             sessionId = "test-session",
             messageId = "msg-sse",
             title = "Execute command",
-            metadata = PermissionMetadata(command = "pwd"),
+            metadata = kotlinx.serialization.json.buildJsonObject {
+                put("command", kotlinx.serialization.json.JsonPrimitive("pwd"))
+            },
         )
 
         // Simulate SSE event by directly setting state
@@ -547,7 +551,7 @@ class ChatViewModelTest {
         assertEquals("perm-sse", viewModel.state.value.pendingPermission?.id)
         assertEquals("bash", viewModel.state.value.pendingPermission?.type)
         assertEquals("Execute command", viewModel.state.value.pendingPermission?.title)
-        assertEquals("pwd", viewModel.state.value.pendingPermission?.metadata?.command)
+        assertEquals("pwd", viewModel.state.value.pendingPermission?.metadataCommand)
     }
 
     // --- NEW: Session status tests ---
@@ -757,8 +761,10 @@ class FakeChatTestRepository : SessionRepository {
     var lastPermissionId: String = ""
     var lastPermissionAllow: Boolean = false
 
-    override suspend fun getSessions(): Result<List<Session>> = Result.success(emptyList())
-    override suspend fun createSession(): Result<Session> = Result.failure(Exception("Not implemented"))
+    override suspend fun getProjects(): Result<List<Project>> = Result.success(emptyList())
+    override suspend fun getCurrentProject(): Result<Project> = Result.failure(Exception("Not implemented"))
+    override suspend fun getSessions(directory: String?): Result<List<Session>> = Result.success(emptyList())
+    override suspend fun createSession(directory: String?): Result<Session> = Result.failure(Exception("Not implemented"))
     override suspend fun deleteSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
     override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> = messagesResult
     override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String?): Result<MessageInfo> {

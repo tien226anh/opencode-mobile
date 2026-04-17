@@ -65,7 +65,25 @@ fun SessionListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("OpenCode") },
+                title = {
+                    Column {
+                        Text(component.projectName.ifBlank { "OpenCode" })
+                        if (component.projectName.isNotBlank()) {
+                            Text(
+                                "tap to switch project",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    if (component.projectName.isNotBlank()) {
+                        IconButton(onClick = { component.onSwitchProject() }) {
+                            Text("\u2190", style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { component.viewModel.refreshSessions() }) {
                         Text("\u21BB", style = MaterialTheme.typography.titleMedium)

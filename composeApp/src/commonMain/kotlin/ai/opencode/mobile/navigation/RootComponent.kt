@@ -7,6 +7,7 @@ import ai.opencode.mobile.repository.DefaultSessionRepository
 import ai.opencode.mobile.repository.SessionRepository
 import ai.opencode.mobile.repository.SettingsStorage
 import ai.opencode.mobile.viewmodel.ChatViewModel
+import ai.opencode.mobile.viewmodel.ProjectListViewModel
 import ai.opencode.mobile.viewmodel.SessionListViewModel
 import ai.opencode.mobile.viewmodel.SettingsViewModel
 import com.arkivanov.decompose.ComponentContext
@@ -24,16 +25,25 @@ interface RootComponent {
     fun onBackClicked()
 
     sealed class Child {
+        class ProjectListChild(val component: ProjectListComponent) : Child()
         class SessionListChild(val component: SessionListComponent) : Child()
         class ChatChild(val component: ChatComponent) : Child()
         class SettingsChild(val component: SettingsComponent) : Child()
     }
 }
 
+interface ProjectListComponent {
+    val viewModel: ProjectListViewModel
+    fun onProjectSelected(projectDirectory: String, projectName: String)
+    fun onSettingsClicked()
+}
+
 interface SessionListComponent {
     val viewModel: SessionListViewModel
+    val projectName: String
     fun onSessionClicked(sessionId: String, sessionTitle: String)
     fun onSettingsClicked()
+    fun onSwitchProject()
 }
 
 interface ChatComponent {
@@ -45,7 +55,7 @@ interface ChatComponent {
 interface SettingsComponent {
     val viewModel: SettingsViewModel
     fun saveAndPersist()
-    /** Save settings, persist them, and navigate back to session list (which auto-reloads). */
+    /** Save settings, persist them, and navigate back to project list. */
     fun saveAndGoBack()
 }
 
@@ -63,11 +73,11 @@ class DefaultRootComponent(
 
     /**
      * Decide initial screen: if user has never connected (no saved server), go to Settings first.
-     * Otherwise, go to SessionList (which auto-loads sessions).
+     * Otherwise, go to ProjectList (which auto-loads projects).
      */
     private val initialConfig: Config = run {
         val config = settingsStorage.load()
-        if (config.isConnected) Config.SessionList else Config.Settings
+        if (config.isConnected) Config.ProjectList() else Config.Settings
     }
 
     private val _stack = childStack(
@@ -90,15 +100,34 @@ class DefaultRootComponent(
     @OptIn(DelicateDecomposeApi::class)
     private fun child(config: Config, componentContext: ComponentContext): RootComponent.Child =
         when (config) {
+            is Config.ProjectList -> {
+                RootComponent.Child.ProjectListChild(
+                    DefaultProjectListComponent(
+                        componentContext = componentContext,
+                        sessionRepository = sessionRepository,
+                        onProjectSelected = { directory, name ->
+                            navigation.push(Config.SessionList(directory = directory, projectName = name))
+                        },
+                        onSettingsRequested = {
+                            navigation.push(Config.Settings)
+                        },
+                    ),
+                )
+            }
             is Config.SessionList -> {
                 val component = DefaultSessionListComponent(
                     componentContext = componentContext,
                     sessionRepository = sessionRepository,
+                    directory = config.directory,
+                    projectName = config.projectName,
                     onSessionSelected = { id, title ->
                         navigation.push(Config.Chat(sessionId = id, sessionTitle = title))
                     },
                     onSettingsRequested = {
                         navigation.push(Config.Settings)
+                    },
+                    onSwitchProjectRequested = {
+                        navigation.push(Config.ProjectList())
                     },
                 )
                 currentSessionListComponent = component
@@ -121,7 +150,7 @@ class DefaultRootComponent(
                     apiClient = apiClient,
                     settingsStorage = settingsStorage,
                     onSaved = {
-                        // After saving: pop back to session list and reload
+                        // After saving: pop back and reload
                         navigation.pop()
                         currentSessionListComponent?.reloadSessions()
                     },
@@ -134,14 +163,37 @@ class DefaultRootComponent(
     }
 }
 
+class DefaultProjectListComponent(
+    componentContext: ComponentContext,
+    sessionRepository: SessionRepository,
+    private val onProjectSelected: (String, String) -> Unit,
+    private val onSettingsRequested: () -> Unit,
+) : ProjectListComponent, ComponentContext by componentContext {
+
+    override val viewModel = ProjectListViewModel(repository = sessionRepository)
+
+    override fun onProjectSelected(projectDirectory: String, projectName: String) {
+        onProjectSelected(projectDirectory, projectName)
+    }
+
+    override fun onSettingsClicked() {
+        onSettingsRequested()
+    }
+}
+
 class DefaultSessionListComponent(
     componentContext: ComponentContext,
     sessionRepository: SessionRepository,
+    private val directory: String?,
+    override val projectName: String,
     private val onSessionSelected: (String, String) -> Unit,
     private val onSettingsRequested: () -> Unit,
+    private val onSwitchProjectRequested: () -> Unit,
 ) : SessionListComponent, ComponentContext by componentContext {
 
-    override val viewModel = SessionListViewModel(sessionRepository)
+    override val viewModel = SessionListViewModel(sessionRepository = sessionRepository).also {
+        it.directoryFilter = directory
+    }
 
     override fun onSessionClicked(sessionId: String, sessionTitle: String) {
         onSessionSelected(sessionId, sessionTitle)
@@ -149,6 +201,10 @@ class DefaultSessionListComponent(
 
     override fun onSettingsClicked() {
         onSettingsRequested()
+    }
+
+    override fun onSwitchProject() {
+        onSwitchProjectRequested()
     }
 
     /** Reload sessions — called after settings are saved. */

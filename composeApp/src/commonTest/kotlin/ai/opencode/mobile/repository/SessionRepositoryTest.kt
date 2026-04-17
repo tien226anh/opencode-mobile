@@ -5,6 +5,7 @@ import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.Mode
 import ai.opencode.mobile.model.ModeModel
 import ai.opencode.mobile.model.Part
+import ai.opencode.mobile.model.Project
 import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.Session
@@ -180,10 +181,16 @@ internal class FakeTestRepository(
     private val shouldFail: Boolean = false,
 ) : SessionRepository {
 
-    override suspend fun getSessions(): Result<List<Session>> =
+    override suspend fun getProjects(): Result<List<Project>> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(emptyList())
+
+    override suspend fun getCurrentProject(): Result<Project> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Project(id = "test-project", worktree = "/test"))
+
+    override suspend fun getSessions(directory: String?): Result<List<Session>> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(sessions)
 
-    override suspend fun createSession(): Result<Session> =
+    override suspend fun createSession(directory: String?): Result<Session> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(createResult)
 
     override suspend fun deleteSession(sessionId: String): Result<Boolean> =

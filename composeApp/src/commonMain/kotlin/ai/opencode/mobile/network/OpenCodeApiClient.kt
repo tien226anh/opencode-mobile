@@ -233,16 +233,24 @@ class OpenCodeApiClient(
     //endregion
 
     //region Session endpoints (matching official SDK)
-    suspend fun listSessions(): Result<List<Session>> = runCatching {
-        val response = httpClient.get("$baseUrl/session") { addAuthHeader(this) }
+    suspend fun listSessions(directory: String? = null): Result<List<Session>> = runCatching {
+        val response = httpClient.get("$baseUrl/session") {
+            addAuthHeader(this)
+            if (directory != null) {
+                parameter("directory", directory)
+            }
+        }
         validateJsonResponse(response)
         response.body<List<Session>>()
     }
 
-    suspend fun createSession(): Result<Session> = runCatching {
+    suspend fun createSession(directory: String? = null): Result<Session> = runCatching {
         val response = httpClient.post("$baseUrl/session") {
             addAuthHeader(this)
             contentType(ContentType.Application.Json)
+            if (directory != null) {
+                parameter("directory", directory)
+            }
         }
         validateJsonResponse(response)
         response.body<Session>()
@@ -394,6 +402,22 @@ class OpenCodeApiClient(
         }
         validateJsonResponse(response)
         response.body<Boolean>()
+    }
+    //endregion
+
+    //region Project endpoints
+    /** List all projects available on the server. */
+    suspend fun listProjects(): Result<List<Project>> = runCatching {
+        val response = httpClient.get("$baseUrl/project") { addAuthHeader(this) }
+        validateJsonResponse(response)
+        response.body<List<Project>>()
+    }
+
+    /** Get the currently active project. */
+    suspend fun getCurrentProject(): Result<Project> = runCatching {
+        val response = httpClient.get("$baseUrl/project/current") { addAuthHeader(this) }
+        validateJsonResponse(response)
+        response.body<Project>()
     }
     //endregion
 

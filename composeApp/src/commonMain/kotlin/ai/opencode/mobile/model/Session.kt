@@ -8,6 +8,10 @@ data class Session(
     val id: String,
     val title: String = "",
     val version: String = "",
+    /** The project this session belongs to. */
+    @SerialName("projectID") val projectId: String = "",
+    /** The directory/worktree path for this session. */
+    val directory: String = "",
     val time: SessionTime = SessionTime(),
     @SerialName("parentID") val parentId: String? = null,
     val revert: RevertInfo? = null,

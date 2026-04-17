@@ -3,6 +3,7 @@ package ai.opencode.mobile.viewmodel
 import ai.opencode.mobile.model.MessageInfo
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.Mode
+import ai.opencode.mobile.model.Project
 import ai.opencode.mobile.model.ModeModel
 import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Provider
@@ -138,8 +139,10 @@ class FakeSessionListTestRepository : SessionRepository {
     var sessionsResult: Result<List<Session>> = Result.success(emptyList())
     var createSessionResult: Result<Session> = Result.failure(Exception("Not configured"))
 
-    override suspend fun getSessions(): Result<List<Session>> = sessionsResult
-    override suspend fun createSession(): Result<Session> = createSessionResult
+    override suspend fun getProjects(): Result<List<Project>> = Result.success(emptyList())
+    override suspend fun getCurrentProject(): Result<Project> = Result.failure(Exception("Not implemented"))
+    override suspend fun getSessions(directory: String?): Result<List<Session>> = sessionsResult
+    override suspend fun createSession(directory: String?): Result<Session> = createSessionResult
     override suspend fun deleteSession(sessionId: String): Result<Boolean> = Result.failure(Exception("Not implemented"))
     override suspend fun getMessages(sessionId: String): Result<List<MessageResponseItem>> = Result.success(emptyList())
     override suspend fun sendMessage(sessionId: String, text: String, modelId: String, providerId: String, mode: String?): Result<MessageInfo> = Result.failure(Exception("Not implemented"))

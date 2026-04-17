@@ -15,6 +15,7 @@ import ai.opencode.mobile.navigation.RootComponent
 import ai.opencode.mobile.network.OpenCodeApiClient
 import ai.opencode.mobile.repository.SettingsStorage
 import ai.opencode.mobile.ui.screens.ChatScreen
+import ai.opencode.mobile.ui.screens.ProjectListScreen
 import ai.opencode.mobile.ui.screens.SessionListScreen
 import ai.opencode.mobile.ui.screens.SettingsScreen
 import ai.opencode.mobile.ui.theme.OpenCodeTheme
@@ -46,6 +47,9 @@ fun AppContent(rootComponent: RootComponent) {
         modifier = Modifier.fillMaxSize(),
     ) { child ->
         when (val instance = child.instance) {
+            is RootComponent.Child.ProjectListChild -> ProjectListScreen(
+                component = instance.component,
+            )
             is RootComponent.Child.SessionListChild -> SessionListScreen(
                 component = instance.component,
             )

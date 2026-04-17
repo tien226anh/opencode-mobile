@@ -99,7 +99,7 @@ class SerializationTest {
             callId = "tc-1",
             state = ToolState(
                 status = "completed",
-                input = """{"path":"/src/main.kt"}""",
+                input = kotlinx.serialization.json.Json.parseToJsonElement("""{"path":"/src/main.kt"}"""),
                 output = "file content here",
             ),
         )
@@ -110,7 +110,8 @@ class SerializationTest {
         assertEquals("tc-1", decoded.callId)
         assertNotNull(decoded.state)
         assertEquals("completed", decoded.state!!.status)
-        assertEquals("""{"path":"/src/main.kt"}""", decoded.state!!.input)
+        assertNotNull(decoded.state!!.input)
+        assertEquals("""{"path":"/src/main.kt"}""", decoded.state!!.input.toString())
     }
 
     @Test

@@ -128,7 +128,8 @@ data class Part(
     val mime: String? = null,
     val url: String? = null,
     val filename: String? = null,
-    val source: String? = null, // serialized FileSource or SymbolSource
+    /** Source — can be a FileSource or SymbolSource object, or string. */
+    val source: JsonElement? = null,
     // SnapshotPart fields
     val snapshot: String? = null,
     // PatchPart fields
@@ -155,18 +156,23 @@ data class PartTime(
 @Serializable
 data class ToolState(
     val status: String = "",
-    val input: String? = null,
+    /** Tool input — can be a JSON object {[key: string]: unknown} or string. */
+    val input: JsonElement? = null,
     val output: String? = null,
     val error: String? = null,
     val title: String? = null,
-    val metadata: String? = null,
+    /** Tool metadata — can be a JSON object {[key: string]: unknown} or absent. */
+    val metadata: JsonElement? = null,
     val time: ToolTime? = null,
+    val raw: String? = null,
+    val attachments: JsonElement? = null,
 )
 
 @Serializable
 data class ToolTime(
     val start: Long = 0,
     val end: Long = 0,
+    val compacted: Long? = null,
 )
 
 @Serializable

@@ -1,8 +1,12 @@
 package ai.opencode.mobile.model
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -26,7 +30,9 @@ class PermissionSerializationTest {
                 "file": null,
                 "args": null
             },
-            "time": 1712345678
+            "time": {
+                "created": 1712345678
+            }
         }
         """.trimIndent()
 
@@ -39,9 +45,9 @@ class PermissionSerializationTest {
         assertEquals("msg-def", permission.messageId)
         assertEquals("call-ghi", permission.callId)
         assertEquals("Run bash command", permission.title)
-        assertEquals("ls -la", permission.metadata?.command)
-        assertNull(permission.metadata?.file)
-        assertEquals(1712345678, permission.time)
+        assertEquals("ls -la", permission.metadataCommand)
+        assertNull(permission.metadataFile)
+        assertEquals(1712345678L, permission.timeCreated)
     }
 
     @Test
@@ -53,7 +59,9 @@ class PermissionSerializationTest {
             "sessionID": "sess-xyz",
             "messageID": "msg-abc",
             "title": "Edit file",
-            "time": 1712345678
+            "time": {
+                "created": 1712345678
+            }
         }
         """.trimIndent()
 
@@ -82,16 +90,17 @@ class PermissionSerializationTest {
                 "file": "/path/to/file.kt",
                 "args": "{\"content\": \"hello\"}"
             },
-            "time": 1712345678
+            "time": {
+                "created": 1712345678
+            }
         }
         """.trimIndent()
 
         val permission = json.decodeFromString<Permission>(jsonString)
 
         assertEquals("perm-789", permission.id)
-        assertEquals("/path/to/file.kt", permission.metadata?.file)
-        assertEquals("{\"content\": \"hello\"}", permission.metadata?.args)
-        assertNull(permission.metadata?.command)
+        assertEquals("/path/to/file.kt", permission.metadataFile)
+        assertNull(permission.metadataCommand)
     }
 
     @Test
@@ -112,7 +121,7 @@ class PermissionSerializationTest {
     }
 
     @Test
-    fun testPermissionDeserialization_withPattern() {
+    fun testPermissionDeserialization_withStringPattern() {
         val jsonString = """
         {
             "id": "perm-pattern",
@@ -121,12 +130,36 @@ class PermissionSerializationTest {
             "sessionID": "sess-pat",
             "messageID": "msg-pat",
             "title": "Read file matching pattern",
-            "time": 1712345678
+            "time": {
+                "created": 1712345678
+            }
         }
         """.trimIndent()
 
         val permission = json.decodeFromString<Permission>(jsonString)
+        assertNotNull(permission.pattern)
+        assertEquals("src/**/*.kt", permission.pattern!!.jsonPrimitive.content)
+    }
 
-        assertEquals("src/**/*.kt", permission.pattern)
+    @Test
+    fun testPermissionDeserialization_withArrayPattern() {
+        val jsonString = """
+        {
+            "id": "perm-arr",
+            "type": "file-read",
+            "pattern": ["src/**/*.kt", "test/**/*.kt"],
+            "sessionID": "sess-arr",
+            "messageID": "msg-arr",
+            "title": "Read files",
+            "time": {
+                "created": 1712345678
+            }
+        }
+        """.trimIndent()
+
+        val permission = json.decodeFromString<Permission>(jsonString)
+        assertNotNull(permission.pattern)
+        // Pattern is a JsonArray — verify it deserializes without error
+        assertTrue(permission.pattern!!.jsonArray.size == 2)
     }
 }

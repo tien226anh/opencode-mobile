@@ -46,17 +46,13 @@ fun PermissionDialog(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
-                // Show metadata details (command, file, args)
-                val metadata = permission.metadata
-                if (metadata != null) {
+                // Show metadata details (command, file, etc.)
+                val command = permission.metadataCommand
+                val file = permission.metadataFile
+                if (command != null || file != null) {
                     val details = buildString {
-                        metadata.command?.let { append("Command: $it") }
-                        metadata.file?.let { if (isNotEmpty()) append("\n") ; append("File: $it") }
-                        metadata.args?.let {
-                            if (isNotEmpty()) append("\n")
-                            append("Args: ")
-                            append(it.take(200))
-                        }
+                        command?.let { append("Command: $it") }
+                        file?.let { if (isNotEmpty()) append("\n") ; append("File: $it") }
                     }
                     if (details.isNotBlank()) {
                         Surface(
