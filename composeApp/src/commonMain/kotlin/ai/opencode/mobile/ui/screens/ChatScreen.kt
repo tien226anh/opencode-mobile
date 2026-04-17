@@ -469,6 +469,124 @@ fun MessageBubble(
                 }
             }
 
+            // Reasoning parts (collapsible thinking)
+            message.parts.filter { it.type == "reasoning" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = "[Thinking] Reasoning",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        val reasoningText = part.text ?: ""
+                        if (reasoningText.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = reasoningText.take(500) + if (reasoningText.length > 500) "..." else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                maxLines = 8,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Patch parts (show changed files)
+            message.parts.filter { it.type == "patch" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = "\u270E Patch${part.hash?.let { " ($it)" } ?: ""}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        part.files?.forEach { file ->
+                            Text(
+                                text = file,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Agent parts (show agent reference)
+            message.parts.filter { it.type == "agent" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = "[Agent] ${part.name ?: "unknown"}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(6.dp),
+                    )
+                }
+            }
+
+            // Retry parts (show retry indicator)
+            message.parts.filter { it.type == "retry" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                ) {
+                    Text(
+                        text = "\u21BB Retry attempt ${part.attempt ?: 1}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(6.dp),
+                    )
+                }
+            }
+
+            // Compaction parts (show summary indicator)
+            message.parts.filter { it.type == "compaction" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = "[Compacted]${if (part.auto == true) " (auto)" else ""}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(6.dp),
+                    )
+                }
+            }
+
+            // Subtask parts (show subtask prompt)
+            message.parts.filter { it.type == "subtask" }.forEach { part ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = "[Subtask] ${part.text?.take(100) ?: part.name ?: "processing"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(6.dp),
+                    )
+                }
+            }
+
             // Message-level cost/tokens info
             if (!isUser && (message.info.cost != null || message.info.tokens != null)) {
                 Spacer(modifier = Modifier.height(4.dp))

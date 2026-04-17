@@ -64,6 +64,9 @@ data class MessageError(
 
 /**
  * Union type for message parts. The `type` field determines which fields are populated.
+ *
+ * Supported types: text, tool, file, step-start, step-finish, snapshot, patch,
+ * reasoning, agent, retry, compaction, subtask
  */
 @Serializable
 data class Part(
@@ -92,6 +95,13 @@ data class Part(
     // StepFinishPart fields
     val cost: Double? = null,
     val tokens: PartTokens? = null,
+    val reason: String? = null,
+    // AgentPart fields
+    val name: String? = null,
+    // RetryPart fields
+    val attempt: Int? = null,
+    // CompactionPart fields
+    val auto: Boolean? = null,
 )
 
 @Serializable

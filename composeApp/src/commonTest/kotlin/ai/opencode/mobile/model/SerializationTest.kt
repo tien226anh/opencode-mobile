@@ -297,4 +297,59 @@ class SerializationTest {
         assertEquals(4096, OpenCodeApiClient.DEFAULT_PORT)
         assertEquals("http://localhost:4096", OpenCodeApiClient.DEFAULT_URL)
     }
+
+    // --- New Part type tests ---
+    @Test
+    fun testReasoningPart() {
+        val jsonString = """{"type": "reasoning", "id": "p-r1", "text": "Let me think about this step by step...", "time": {"start": 1000, "end": 2000}}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("reasoning", decoded.type)
+        assertEquals("p-r1", decoded.id)
+        assertEquals("Let me think about this step by step...", decoded.text)
+        assertNotNull(decoded.time)
+        assertEquals(1000, decoded.time!!.start)
+    }
+
+    @Test
+    fun testPatchPart() {
+        val jsonString = """{"type": "patch", "id": "p-p1", "hash": "abc123", "files": ["src/Main.kt", "src/Utils.kt"]}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("patch", decoded.type)
+        assertEquals("abc123", decoded.hash)
+        assertEquals(2, decoded.files!!.size)
+        assertEquals("src/Main.kt", decoded.files!![0])
+    }
+
+    @Test
+    fun testAgentPart() {
+        val jsonString = """{"type": "agent", "id": "p-a1", "name": "plan"}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("agent", decoded.type)
+        assertEquals("plan", decoded.name)
+    }
+
+    @Test
+    fun testRetryPart() {
+        val jsonString = """{"type": "retry", "id": "p-rt1", "attempt": 3}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("retry", decoded.type)
+        assertEquals(3, decoded.attempt)
+    }
+
+    @Test
+    fun testCompactionPart() {
+        val jsonString = """{"type": "compaction", "id": "p-c1", "auto": true}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("compaction", decoded.type)
+        assertEquals(true, decoded.auto)
+    }
+
+    @Test
+    fun testStepFinishWithReason() {
+        val jsonString = """{"type": "step-finish", "id": "p-sf1", "reason": "completed", "cost": 0.05}"""
+        val decoded = json.decodeFromString(Part.serializer(), jsonString)
+        assertEquals("step-finish", decoded.type)
+        assertEquals("completed", decoded.reason)
+        assertEquals(0.05, decoded.cost!!)
+    }
 }
