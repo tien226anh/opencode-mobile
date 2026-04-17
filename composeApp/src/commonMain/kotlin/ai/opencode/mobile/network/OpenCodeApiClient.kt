@@ -261,7 +261,8 @@ class OpenCodeApiClient(
             setBody(request)
         }
         validateJsonResponse(response)
-        response.body<MessageInfo>()
+        val messageResponse = response.body<MessageResponseItem>()
+        messageResponse.info
     }
 
     suspend fun listMessages(sessionId: String): Result<List<MessageResponseItem>> = runCatching {
