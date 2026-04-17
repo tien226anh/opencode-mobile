@@ -674,13 +674,15 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun testLoadTodoListFailureShowsError() {
+    fun testLoadTodoListFailureSilentlyIgnored() {
         fakeRepository.todoListResult = Result.failure(Exception("Todo load failed"))
 
         viewModel.loadTodoList()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.error?.contains("Failed to load todos") == true)
+        // Todos are optional — failure should NOT set error state
+        assertNull(viewModel.state.value.error)
+        assertEquals(emptyList<Todo>(), viewModel.state.value.todos)
     }
 
     // --- NEW: Command tests ---
@@ -702,13 +704,15 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun testLoadCommandsFailureShowsError() {
+    fun testLoadCommandsFailureSilentlyIgnored() {
         fakeRepository.commandsResult = Result.failure(Exception("Commands load failed"))
 
         viewModel.loadCommands()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.error?.contains("Failed to load commands") == true)
+        // Commands are optional — failure should NOT set error state
+        assertNull(viewModel.state.value.error)
+        assertEquals(emptyList<ai.opencode.mobile.model.SlashCommand>(), viewModel.state.value.commands)
     }
 
     @Test

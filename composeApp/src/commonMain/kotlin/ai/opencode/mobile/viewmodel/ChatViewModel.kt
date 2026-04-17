@@ -460,6 +460,7 @@ class ChatViewModel(
 
     /**
      * Load the todo list for the current session.
+     * Silently fails — todos are supplementary info; don't block chat.
      */
     fun loadTodoList() {
         viewModelScope.launch {
@@ -468,10 +469,8 @@ class ChatViewModel(
                 onSuccess = { todos ->
                     _state.value = _state.value.copy(todos = todos)
                 },
-                onFailure = { error ->
-                    _state.value = _state.value.copy(
-                        error = "Failed to load todos: ${error.message ?: "Unknown error"}",
-                    )
+                onFailure = {
+                    // Silently ignore — todos will just be empty
                 },
             )
         }
@@ -479,6 +478,7 @@ class ChatViewModel(
 
     /**
      * Load available slash commands from the server.
+     * Silently fails — commands are optional; don't block the chat.
      */
     fun loadCommands() {
         viewModelScope.launch {
@@ -487,10 +487,8 @@ class ChatViewModel(
                 onSuccess = { commands ->
                     _state.value = _state.value.copy(commands = commands)
                 },
-                onFailure = { error ->
-                    _state.value = _state.value.copy(
-                        error = "Failed to load commands: ${error.message ?: "Unknown error"}",
-                    )
+                onFailure = {
+                    // Silently ignore — commands will just be unavailable
                 },
             )
         }
