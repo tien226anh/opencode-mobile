@@ -12,7 +12,7 @@ import kotlin.test.assertFalse
 
 class SerializationTest {
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true }
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true; explicitNulls = false }
 
     // --- Session tests ---
     @Test
@@ -265,6 +265,24 @@ class SerializationTest {
         assertTrue(jsonString.contains("\"agent\""), "Missing 'agent' field: $jsonString")
         assertTrue(jsonString.contains("\"parts\""), "Missing 'parts' field: $jsonString")
         assertTrue(jsonString.contains("\"type\":\"text\""), "Part missing type discriminator: $jsonString")
+    }
+
+    @Test
+    fun testChatRequestOmitsNullFields() {
+        val request = ChatRequest(
+            model = ChatRequestModel(providerId = "ollama-cloud", modelId = "rnj-1:8b"),
+            agent = "code",
+            parts = listOf(TextPartInput(text = "hi")),
+            // messageId, system, tools, mode are all null — server rejects null values
+        )
+        val jsonString = json.encodeToString(ChatRequest.serializer(), request)
+        // Null fields must be OMITTED, not sent as null
+        assertFalse(jsonString.contains("\"messageID\":null"), "messageID should be omitted, not null: $jsonString")
+        assertFalse(jsonString.contains("\"system\":null"), "system should be omitted, not null: $jsonString")
+        assertFalse(jsonString.contains("\"tools\":null"), "tools should be omitted, not null: $jsonString")
+        assertFalse(jsonString.contains("\"mode\":null"), "mode should be omitted, not null: $jsonString")
+        // But type="text" default must still be present (encodeDefaults=true)
+        assertTrue(jsonString.contains("\"type\":\"text\""), "type default must be present: $jsonString")
     }
 
     // --- ServerConfig tests ---

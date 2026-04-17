@@ -455,6 +455,7 @@ class OpenCodeApiClient(
                         isLenient = true
                         coerceInputValues = true
                         encodeDefaults = true
+                        explicitNulls = false
                     })
                 }
                 install(HttpTimeout) {
