@@ -54,8 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.opencode.mobile.model.MessageResponseItem
 import ai.opencode.mobile.model.Part
-import ai.opencode.mobile.model.SessionStatus
-import ai.opencode.mobile.ui.components.FileDiffCard
+ import ai.opencode.mobile.model.SessionStatus
+ import ai.opencode.mobile.model.Todo
+ import ai.opencode.mobile.ui.components.FileDiffCard
 import ai.opencode.mobile.navigation.ChatComponent
 import ai.opencode.mobile.ui.components.MarkdownText
 import ai.opencode.mobile.ui.components.PermissionDialog
@@ -238,6 +239,20 @@ fun ChatScreen(
                             )
                         }
                     }
+                    // Todo list section
+                    if (state.todos.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Tasks (${state.todos.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        }
+                        items(items = state.todos, key = { it.id }) { todo ->
+                            TodoItem(todo = todo)
+                        }
+                    }
                 }
             }
         }
@@ -376,6 +391,57 @@ fun ProviderModelModeBar(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * A single todo item in the task list.
+ */
+@Composable
+fun TodoItem(
+    todo: Todo,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = when (todo.status) {
+            "completed" -> MaterialTheme.colorScheme.primaryContainer
+            "in_progress" -> MaterialTheme.colorScheme.tertiaryContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        tonalElevation = 1.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = when (todo.status) {
+                    "completed" -> "\u2713"
+                    "in_progress" -> "\u25CB"
+                    else -> "\u25CB"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = when (todo.status) {
+                    "completed" -> MaterialTheme.colorScheme.primary
+                    "in_progress" -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+            Text(
+                text = todo.content,
+                style = MaterialTheme.typography.bodySmall,
+                color = when (todo.status) {
+                    "completed" -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

@@ -12,6 +12,7 @@ import ai.opencode.mobile.model.Provider
 import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionStatus
+import ai.opencode.mobile.model.Todo
 import ai.opencode.mobile.model.Session
 import ai.opencode.mobile.model.SessionTime
 import ai.opencode.mobile.repository.SessionRepository
@@ -690,4 +691,16 @@ class FakeChatTestRepository : SessionRepository {
 
     override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
         Result.success(SessionDiffResponse())
+
+    override suspend fun forkSession(sessionId: String, messageId: String?): Result<Session> =
+        Result.success(Session(id = "forked-$sessionId"))
+
+    override suspend fun getSessionChildren(sessionId: String): Result<List<Session>> =
+        Result.success(emptyList())
+
+    override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
+        Result.success(emptyList())
+
+    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
+        Result.success(true)
 }

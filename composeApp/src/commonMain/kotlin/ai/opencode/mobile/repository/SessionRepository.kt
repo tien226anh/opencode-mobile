@@ -18,6 +18,10 @@ interface SessionRepository {
     suspend fun revertMessage(sessionId: String, messageId: String, partId: String? = null): Result<Session>
     suspend fun unrevertMessage(sessionId: String): Result<Session>
     suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse>
+    suspend fun forkSession(sessionId: String, messageId: String? = null): Result<Session>
+    suspend fun getSessionChildren(sessionId: String): Result<List<Session>>
+    suspend fun getTodoList(sessionId: String): Result<List<Todo>>
+    suspend fun executeCommand(sessionId: String, command: String): Result<Boolean>
 }
 
 class DefaultSessionRepository(
@@ -80,4 +84,16 @@ class DefaultSessionRepository(
 
     override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
         apiClient.getSessionDiff(sessionId)
+
+    override suspend fun forkSession(sessionId: String, messageId: String?): Result<Session> =
+        apiClient.forkSession(sessionId, messageId)
+
+    override suspend fun getSessionChildren(sessionId: String): Result<List<Session>> =
+        apiClient.getSessionChildren(sessionId)
+
+    override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
+        apiClient.getTodoList(sessionId)
+
+    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
+        apiClient.executeCommand(sessionId, command)
 }

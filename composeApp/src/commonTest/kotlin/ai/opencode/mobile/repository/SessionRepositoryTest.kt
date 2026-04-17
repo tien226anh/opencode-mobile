@@ -10,6 +10,7 @@ import ai.opencode.mobile.model.ProvidersResponse
 import ai.opencode.mobile.model.Session
 import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionTime
+import ai.opencode.mobile.model.Todo
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -162,6 +163,10 @@ class SessionRepositoryTest {
         assertTrue(repo.revertMessage("x", "m").isFailure)
         assertTrue(repo.unrevertMessage("x").isFailure)
         assertTrue(repo.getSessionDiff("x").isFailure)
+        assertTrue(repo.forkSession("x").isFailure)
+        assertTrue(repo.getSessionChildren("x").isFailure)
+        assertTrue(repo.getTodoList("x").isFailure)
+        assertTrue(repo.executeCommand("x", "cmd").isFailure)
     }
 }
 
@@ -215,4 +220,16 @@ internal class FakeTestRepository(
 
     override suspend fun getSessionDiff(sessionId: String): Result<SessionDiffResponse> =
         if (shouldFail) Result.failure(Exception("Test error")) else Result.success(SessionDiffResponse())
+
+    override suspend fun forkSession(sessionId: String, messageId: String?): Result<Session> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(Session(id = "forked-$sessionId"))
+
+    override suspend fun getSessionChildren(sessionId: String): Result<List<Session>> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(emptyList())
+
+    override suspend fun getTodoList(sessionId: String): Result<List<Todo>> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(emptyList())
+
+    override suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> =
+        if (shouldFail) Result.failure(Exception("Test error")) else Result.success(true)
 }

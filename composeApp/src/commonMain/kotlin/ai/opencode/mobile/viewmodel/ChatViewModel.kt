@@ -12,6 +12,7 @@ import ai.opencode.mobile.model.Part
 import ai.opencode.mobile.model.Permission
 import ai.opencode.mobile.model.SessionDiffResponse
 import ai.opencode.mobile.model.SessionStatus
+import ai.opencode.mobile.model.Todo
 import ai.opencode.mobile.network.SSEClient
 import ai.opencode.mobile.network.SSEEvent
 import ai.opencode.mobile.platform.currentTimeSeconds
@@ -48,6 +49,8 @@ data class ChatState(
     // File diffs
     val fileDiffs: List<FileDiff> = emptyList(),
     val isLoadingDiffs: Boolean = false,
+    // Todo list
+    val todos: List<Todo> = emptyList(),
 ) {
     val selectedProvider: Provider? get() = providers.find { it.id == selectedProviderId }
     val selectedProviderModels: List<ModelInfo> get() =
@@ -419,6 +422,45 @@ class ChatViewModel(
                     _state.value = _state.value.copy(
                         isLoadingDiffs = false,
                         error = "Failed to load diffs: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Fork the current session at a specific message.
+     * Returns the new session ID which can be used to navigate to the forked session.
+     */
+    fun forkSession(messageId: String? = null, onForked: ((String) -> Unit)? = null) {
+        viewModelScope.launch {
+            val result = sessionRepository.forkSession(sessionId, messageId)
+            result.fold(
+                onSuccess = { forkedSession ->
+                    onForked?.invoke(forkedSession.id)
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Failed to fork session: ${error.message ?: "Unknown error"}",
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Load the todo list for the current session.
+     */
+    fun loadTodoList() {
+        viewModelScope.launch {
+            val result = sessionRepository.getTodoList(sessionId)
+            result.fold(
+                onSuccess = { todos ->
+                    _state.value = _state.value.copy(todos = todos)
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        error = "Failed to load todos: ${error.message ?: "Unknown error"}",
                     )
                 },
             )

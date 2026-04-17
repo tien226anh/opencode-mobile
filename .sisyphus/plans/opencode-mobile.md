@@ -78,9 +78,9 @@ Port OpenCode (the open-source AI coding agent) to mobile using Compose Multipla
 ### Phase 7: SDK Parity — Rich Content (Diffs + Parts + Tools)
 - [x] T16: Implement File Diff Viewer (model, API, UI component) with TDD
   - Acceptance Criteria: `FileDiff` model with file/before/after/additions/deletions. `GET /session/:id/diff` endpoint. Diff viewer UI component showing additions/deletions. Unit tests for parsing and diff computation.
-- [ ] T17: Implement Part Type Parity (reasoning, step, patch, agent, subtask) with TDD
+- [x] T17: Implement Part Type Parity (reasoning, step, patch, agent, subtask) with TDD
   - Acceptance Criteria: Add `ReasoningPart`, `StepStartPart`, `StepFinishPart`, `PatchPart`, `AgentPart`, `SubtaskPart` to Part model (or as discriminated union). SSEClient parses all part types. UI renders reasoning as collapsible thinking block, step indicators, patch summaries, agent references. Unit tests for each part type.
-- [ ] T18: Implement Enhanced Tool Display (union ToolState) with TDD
+- [x] T18: Implement Enhanced Tool Display (union ToolState) with TDD
   - Acceptance Criteria: `ToolState` as sealed class (Pending/Running/Completed/Error) with title, metadata, time, attachments. ToolResultCard updated to show running spinner, elapsed time, tool title. Unit tests for ToolState transitions.
 
 ### Phase 8: SDK Parity — Advanced Features

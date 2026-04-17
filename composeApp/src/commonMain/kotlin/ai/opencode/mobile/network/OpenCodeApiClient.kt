@@ -15,6 +15,8 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
 class OpenCodeApiClient(
@@ -267,6 +269,44 @@ class OpenCodeApiClient(
         } else {
             Json { ignoreUnknownKeys = true }.decodeFromString<SessionDiffResponse>(responseBody)
         }
+    }
+
+    suspend fun forkSession(sessionId: String, messageId: String? = null): Result<Session> = runCatching {
+        val requestBody = if (messageId != null) {
+            buildJsonObject { put("messageID", JsonPrimitive(messageId)) }
+        } else {
+            buildJsonObject {}
+        }
+        val response = httpClient.post("$baseUrl/session/$sessionId/fork") {
+            addAuthHeader(this)
+            contentType(ContentType.Application.Json)
+            setBody(requestBody)
+        }
+        validateJsonResponse(response)
+        response.body<Session>()
+    }
+
+    suspend fun getSessionChildren(sessionId: String): Result<List<Session>> = runCatching {
+        val response = httpClient.get("$baseUrl/session/$sessionId/children") { addAuthHeader(this) }
+        validateJsonResponse(response)
+        response.body<List<Session>>()
+    }
+
+    suspend fun getTodoList(sessionId: String): Result<List<Todo>> = runCatching {
+        val response = httpClient.get("$baseUrl/session/$sessionId/todo") { addAuthHeader(this) }
+        validateJsonResponse(response)
+        response.body<List<Todo>>()
+    }
+
+    suspend fun executeCommand(sessionId: String, command: String): Result<Boolean> = runCatching {
+        val requestBody = buildJsonObject { put("command", JsonPrimitive(command)) }
+        val response = httpClient.post("$baseUrl/session/$sessionId/command") {
+            addAuthHeader(this)
+            contentType(ContentType.Application.Json)
+            setBody(requestBody)
+        }
+        validateJsonResponse(response)
+        response.body<Boolean>()
     }
     //endregion
 
